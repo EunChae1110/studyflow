@@ -87,15 +87,23 @@ async function NotesWorkspace({ assignmentId }: { assignmentId: string }) {
   );
 }
 
-export default async function AssignmentNotesPage({
+export default function AssignmentNotesPage({
+  params,
+}: {
+  params: Promise<{ assignmentId: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="h-[640px] animate-pulse rounded-xl bg-surface-muted" />}>
+      <AssignmentNotesPageParams params={params} />
+    </Suspense>
+  );
+}
+
+async function AssignmentNotesPageParams({
   params,
 }: {
   params: Promise<{ assignmentId: string }>;
 }) {
   const { assignmentId } = await params;
-  return (
-    <Suspense fallback={<div className="h-[640px] animate-pulse rounded-xl bg-surface-muted" />}>
-      <NotesWorkspace assignmentId={assignmentId} />
-    </Suspense>
-  );
+  return <NotesWorkspace assignmentId={assignmentId} />;
 }

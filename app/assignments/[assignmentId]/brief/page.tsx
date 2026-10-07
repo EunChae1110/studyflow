@@ -18,15 +18,23 @@ async function BriefContent({ assignmentId }: { assignmentId: string }) {
   return <BriefPanels assignment={assignment} />;
 }
 
-export default async function AssignmentBriefPage({
+export default function AssignmentBriefPage({
+  params,
+}: {
+  params: Promise<{ assignmentId: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface-muted" />}>
+      <AssignmentBriefPageParams params={params} />
+    </Suspense>
+  );
+}
+
+async function AssignmentBriefPageParams({
   params,
 }: {
   params: Promise<{ assignmentId: string }>;
 }) {
   const { assignmentId } = await params;
-  return (
-    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface-muted" />}>
-      <BriefContent assignmentId={assignmentId} />
-    </Suspense>
-  );
+  return <BriefContent assignmentId={assignmentId} />;
 }

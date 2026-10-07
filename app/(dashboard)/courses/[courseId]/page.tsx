@@ -140,12 +140,15 @@ async function CourseDetailContent({ courseId }: { courseId: string }) {
   );
 }
 
-export default async function CourseDetailPage({ params }: CoursePageProps) {
-  const { courseId } = await params;
-
+export default function CourseDetailPage({ params }: CoursePageProps) {
   return (
     <Suspense fallback={<CourseDetailFallback />}>
-      <CourseDetailContent courseId={courseId} />
+      <CourseDetailParams params={params} />
     </Suspense>
   );
+}
+
+async function CourseDetailParams({ params }: CoursePageProps) {
+  const { courseId } = await params;
+  return <CourseDetailContent courseId={courseId} />;
 }

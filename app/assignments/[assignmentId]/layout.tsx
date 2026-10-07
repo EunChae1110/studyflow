@@ -12,14 +12,15 @@ type AssignmentLayoutProps = {
   params: Promise<{ assignmentId: string }>;
 };
 
-/** Session-scoped shell — always resolve requireUser before DB reads. */
+/** Session-scoped shell — await params + requireUser inside Suspense. */
 async function AssignmentShell({
   children,
-  assignmentId,
+  params,
 }: {
   children: React.ReactNode;
-  assignmentId: string;
+  params: Promise<{ assignmentId: string }>;
 }) {
+  const { assignmentId } = await params;
   const user = await requireUser();
   const [assignment, courses] = await Promise.all([
     getAssignmentBySlug(assignmentId, user.id),
@@ -40,15 +41,13 @@ async function AssignmentShell({
   );
 }
 
-export default async function AssignmentLayout({
+export default function AssignmentLayout({
   children,
   params,
 }: AssignmentLayoutProps) {
-  const { assignmentId } = await params;
-
   return (
     <Suspense fallback={<div className="min-h-screen bg-background" />}>
-      <AssignmentShell assignmentId={assignmentId}>{children}</AssignmentShell>
+      <AssignmentShell params={params}>{children}</AssignmentShell>
     </Suspense>
   );
 }

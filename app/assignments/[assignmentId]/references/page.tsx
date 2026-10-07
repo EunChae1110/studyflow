@@ -73,15 +73,23 @@ async function ReferencesContent({ assignmentId }: { assignmentId: string }) {
   );
 }
 
-export default async function AssignmentReferencesPage({
+export default function AssignmentReferencesPage({
+  params,
+}: {
+  params: Promise<{ assignmentId: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface-muted" />}>
+      <AssignmentReferencesPageParams params={params} />
+    </Suspense>
+  );
+}
+
+async function AssignmentReferencesPageParams({
   params,
 }: {
   params: Promise<{ assignmentId: string }>;
 }) {
   const { assignmentId } = await params;
-  return (
-    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface-muted" />}>
-      <ReferencesContent assignmentId={assignmentId} />
-    </Suspense>
-  );
+  return <ReferencesContent assignmentId={assignmentId} />;
 }

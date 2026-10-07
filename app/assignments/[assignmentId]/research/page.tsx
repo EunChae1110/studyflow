@@ -65,19 +65,23 @@ async function ResearchWorkspace({ assignmentId }: { assignmentId: string }) {
   );
 }
 
-export default async function AssignmentResearchPage({
+export default function AssignmentResearchPage({
+  params,
+}: {
+  params: Promise<{ assignmentId: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="h-[680px] animate-pulse rounded-xl bg-surface-muted" />}>
+      <AssignmentResearchPageParams params={params} />
+    </Suspense>
+  );
+}
+
+async function AssignmentResearchPageParams({
   params,
 }: {
   params: Promise<{ assignmentId: string }>;
 }) {
   const { assignmentId } = await params;
-  return (
-    <Suspense
-      fallback={
-        <div className="h-[680px] animate-pulse rounded-xl bg-surface-muted" />
-      }
-    >
-      <ResearchWorkspace assignmentId={assignmentId} />
-    </Suspense>
-  );
+  return <ResearchWorkspace assignmentId={assignmentId} />;
 }

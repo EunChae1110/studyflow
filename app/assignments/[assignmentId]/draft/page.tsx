@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Lock } from "lucide-react";
 import { DraftPlannerForm } from "@/components/assignment/draft-planner-form";
 import { requireUser } from "@/lib/auth";
@@ -6,7 +7,7 @@ import { getAssignmentBySlug } from "@/lib/db/queries";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default async function AssignmentDraftPage({
+async function DraftContent({
   params,
 }: {
   params: Promise<{ assignmentId: string }>;
@@ -56,5 +57,17 @@ export default async function AssignmentDraftPage({
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function AssignmentDraftPage({
+  params,
+}: {
+  params: Promise<{ assignmentId: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface-muted" />}>
+      <DraftContent params={params} />
+    </Suspense>
   );
 }

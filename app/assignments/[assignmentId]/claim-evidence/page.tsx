@@ -122,15 +122,23 @@ async function ClaimEvidenceContent({ assignmentId }: { assignmentId: string }) 
   );
 }
 
-export default async function ClaimEvidenceMapPage({
+export default function ClaimEvidenceMapPage({
+  params,
+}: {
+  params: Promise<{ assignmentId: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface-muted" />}>
+      <ClaimEvidenceMapPageParams params={params} />
+    </Suspense>
+  );
+}
+
+async function ClaimEvidenceMapPageParams({
   params,
 }: {
   params: Promise<{ assignmentId: string }>;
 }) {
   const { assignmentId } = await params;
-  return (
-    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface-muted" />}>
-      <ClaimEvidenceContent assignmentId={assignmentId} />
-    </Suspense>
-  );
+  return <ClaimEvidenceContent assignmentId={assignmentId} />;
 }

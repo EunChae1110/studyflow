@@ -132,17 +132,25 @@ async function OutlineContent({ assignmentId }: { assignmentId: string }) {
   );
 }
 
-export default async function AssignmentOutlinePage({
+export default function AssignmentOutlinePage({
+  params,
+}: {
+  params: Promise<{ assignmentId: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface-muted" />}>
+      <AssignmentOutlinePageParams params={params} />
+    </Suspense>
+  );
+}
+
+async function AssignmentOutlinePageParams({
   params,
 }: {
   params: Promise<{ assignmentId: string }>;
 }) {
   const { assignmentId } = await params;
-  return (
-    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface-muted" />}>
-      <OutlineContent assignmentId={assignmentId} />
-    </Suspense>
-  );
+  return <OutlineContent assignmentId={assignmentId} />;
 }
 
 function OutlineSection({
