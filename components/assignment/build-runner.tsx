@@ -1,246 +1,290 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { Hammer, Loader2, Square, X } from "lucide-react";
-import type { BuildEvent, BuildStepId } from "@/lib/build/types";
+import Link from "next/link";
+import {
+  Check,
+  Circle,
+  Hammer,
+  Loader2,
+  Square,
+  X,
+  AlertTriangle,
+  ArrowRight,
+} from "lucide-react";
+import {
+  useBuildSession,
+  type BuildStepRow,
+} from "@/components/assignment/build-context";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type StepRow = {
-  id: BuildStepId;
-  label: string;
-  status: "pending" | "running" | "done" | "error";
-  message?: string;
-  artifacts?: string[];
-};
-
 type BuildRunnerProps = {
-  assignmentSlug: string;
-  /** Compact = header button; panel = brief card with live log. */
+  /** Compact = header button + floating overlay; panel = brief card. */
   variant?: "header" | "panel";
   className?: string;
 };
 
-function openAiWithPrompt(
-  prompt: string,
-  mode?: "Notes-only" | "Research" | "Outline",
-) {
-  window.dispatchEvent(new CustomEvent("studyflow:open-ai"));
-  if (mode) {
-    window.dispatchEvent(
-      new CustomEvent("studyflow:set-mode", { detail: { mode } }),
+function StepIcon({ status }: { status: BuildStepRow["status"] }) {
+  if (status === "done") {
+    return (
+      <span className="grid size-5 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+        <Check className="size-3" />
+      </span>
     );
   }
-  window.dispatchEvent(
-    new CustomEvent("studyflow:ask-ai", { detail: { prompt } }),
+  if (status === "running") {
+    return <Loader2 className="size-5 shrink-0 animate-spin text-primary" />;
+  }
+  if (status === "error") {
+    return (
+      <span className="grid size-5 shrink-0 place-items-center rounded-full bg-destructive/15 text-destructive">
+        <X className="size-3" />
+      </span>
+    );
+  }
+  return <Circle className="size-5 shrink-0 text-muted" />;
+}
+
+function ProgressBar({ value }: { value: number }) {
+  const clamped = Math.max(0, Math.min(100, value));
+  return (
+    <div
+      className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+      role="progressbar"
+      aria-valuenow={clamped}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <div
+        className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out"
+        style={{ width: `${clamped}%` }}
+      />
+    </div>
   );
 }
 
-export function BuildRunner({
-  assignmentSlug,
-  variant = "panel",
-  className,
-}: BuildRunnerProps) {
-  const router = useRouter();
-  const [running, setRunning] = React.useState(false);
-  const [steps, setSteps] = React.useState<StepRow[]>([]);
-  const [statusLine, setStatusLine] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-  const [doneNote, setDoneNote] = React.useState<string | null>(null);
-  const [open, setOpen] = React.useState(false);
-  const abortRef = React.useRef<AbortController | null>(null);
-
-  const cancel = React.useCallback(() => {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setRunning(false);
-    setStatusLine("Cancelled");
-  }, []);
-
-  const start = React.useCallback(async () => {
-    if (running) return;
-    setOpen(true);
-    setRunning(true);
-    setError(null);
-    setDoneNote(null);
-    setStatusLine("Starting Build…");
-    setSteps([]);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      const res = await fetch("/api/assignments/build", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assignmentSlug }),
-        signal: controller.signal,
-      });
-
-      if (!res.ok) {
-        const json = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(json.error ?? `Build failed (${res.status})`);
-      }
-      if (!res.body) throw new Error("No response stream");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          let event: BuildEvent;
-          try {
-            event = JSON.parse(trimmed) as BuildEvent;
-          } catch {
-            continue;
-          }
-
-          if (event.type === "start") {
-            setSteps(
-              event.steps.map((s) => ({
-                id: s.id,
-                label: s.label,
-                status: "pending",
-              })),
-            );
-            setStatusLine(`Building ${event.assignmentType} · ${event.total} steps`);
-          }
-
-          if (event.type === "step_start") {
-            setSteps((prev) =>
-              prev.map((s) =>
-                s.id === event.step
-                  ? { ...s, status: "running", message: undefined }
-                  : s,
-              ),
-            );
-            setStatusLine(`Building… step ${event.index}/${event.total}: ${event.label}`);
-            // Navigate so the student sees the tab Build is driving.
-            router.push(`/assignments/${assignmentSlug}/${event.tab}`);
-          }
-
-          if (event.type === "step_progress") {
-            setSteps((prev) =>
-              prev.map((s) =>
-                s.id === event.step ? { ...s, message: event.message } : s,
-              ),
-            );
-            setStatusLine(event.message);
-          }
-
-          if (event.type === "step_done") {
-            setSteps((prev) =>
-              prev.map((s) =>
-                s.id === event.step
-                  ? {
-                      ...s,
-                      status: "done",
-                      message: event.summary,
-                      artifacts: event.artifacts,
-                    }
-                  : s,
-              ),
-            );
-            setStatusLine(`Done · ${event.label}`);
-            router.push(`/assignments/${assignmentSlug}/${event.tab}`);
-            router.refresh();
-            if (event.askPrompt) {
-              openAiWithPrompt(event.askPrompt, event.mode);
-            }
-          }
-
-          if (event.type === "step_error") {
-            setSteps((prev) =>
-              prev.map((s) =>
-                s.id === event.step
-                  ? { ...s, status: "error", message: event.error }
-                  : s,
-              ),
-            );
-            setStatusLine(`Error on ${event.step}: ${event.error}`);
-          }
-
-          if (event.type === "error") {
-            setError(event.error);
-            setStatusLine(event.error);
-          }
-
-          if (event.type === "done") {
-            const note = event.cancelled
-              ? `Build cancelled · progress ${event.progress}%`
-              : `Build finished · progress ${event.progress}%`;
-            setDoneNote(note);
-            setStatusLine(note);
-            if (event.tab) {
-              router.push(`/assignments/${assignmentSlug}/${event.tab}`);
-            }
-            router.refresh();
-            if (event.askPrompt && !event.cancelled) {
-              openAiWithPrompt(event.askPrompt, event.mode);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      if ((err as Error)?.name === "AbortError") {
-        setStatusLine("Cancelled");
-        setDoneNote("Build cancelled");
-      } else {
-        const message = err instanceof Error ? err.message : "Build failed";
-        setError(message);
-        setStatusLine(message);
-      }
-    } finally {
-      setRunning(false);
-      abortRef.current = null;
-    }
-  }, [assignmentSlug, router, running]);
-
-  React.useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, []);
-
-  if (variant === "header") {
-    return (
-      <div className={cn("flex items-center gap-2", className)}>
-        <Button
-          type="button"
-          size="sm"
-          onClick={start}
-          disabled={running}
-          className="gap-1.5"
-        >
-          {running ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Hammer className="size-3.5" />
+function StepList({ steps }: { steps: BuildStepRow[] }) {
+  if (steps.length === 0) return null;
+  return (
+    <ul className="space-y-1.5">
+      {steps.map((s) => (
+        <li
+          key={s.id}
+          className={cn(
+            "rounded-lg border px-2.5 py-2 text-xs transition-colors",
+            s.status === "running" && "border-primary/40 bg-primary-soft/40",
+            s.status === "done" && "border-emerald-500/30 bg-emerald-500/5",
+            s.status === "error" && "border-destructive/40 bg-destructive/5",
+            s.status === "pending" && "border-border bg-surface-muted/50",
           )}
-          {running ? "Building…" : "Build"}
-        </Button>
+        >
+          <div className="flex items-start gap-2">
+            <StepIcon status={s.status} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-foreground">{s.label}</span>
+                <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted">
+                  {s.status === "running"
+                    ? "active"
+                    : s.status === "done"
+                      ? "done"
+                      : s.status}
+                </span>
+              </div>
+              {s.message ? (
+                <p className="mt-0.5 text-muted">{s.message}</p>
+              ) : null}
+              {s.artifacts?.length ? (
+                <p className="mt-0.5 text-muted">
+                  Wrote: {s.artifacts.join(" · ")}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function BuildProgressBody({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
+  const {
+    running,
+    steps,
+    statusLine,
+    error,
+    doneNote,
+    progressPct,
+    finished,
+    cancelled,
+    produceTab,
+    produceTabLabel,
+    assignmentSlug,
+    hasGuideline,
+    cancel,
+    dismiss,
+  } = useBuildSession();
+
+  return (
+    <div className={cn("space-y-3", compact && "space-y-2.5")}>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="font-medium text-foreground">
+            {running
+              ? "Building scaffold…"
+              : finished && !cancelled
+                ? "Scaffold ready"
+                : finished && cancelled
+                  ? "Build cancelled"
+                  : "Build progress"}
+          </span>
+          <span className="tabular-nums text-muted">{progressPct}%</span>
+        </div>
+        <ProgressBar value={progressPct} />
+      </div>
+
+      {!hasGuideline && running ? (
+        <p className="flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+          Running without a guideline — results may be thinner.
+        </p>
+      ) : null}
+
+      {statusLine ? (
+        <p className="flex items-center gap-2 text-xs font-medium text-foreground">
+          {running ? <Loader2 className="size-3.5 shrink-0 animate-spin" /> : null}
+          <span className="min-w-0">{statusLine}</span>
+        </p>
+      ) : null}
+
+      <StepList steps={steps} />
+
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+
+      {doneNote && finished && !cancelled ? (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-xs">
+          <p className="font-medium text-emerald-800 dark:text-emerald-300">
+            {doneNote}
+          </p>
+          <p className="mt-1 text-muted">
+            Open {produceTabLabel} to fill the plan cards. Coach will ask
+            questions — it will not write the full deliverable for you.
+          </p>
+          <Link
+            href={`/assignments/${assignmentSlug}/${produceTab}`}
+            className="mt-2 inline-flex items-center gap-1 font-medium text-primary hover:underline"
+            onClick={dismiss}
+          >
+            Go to {produceTabLabel}
+            <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
+      ) : null}
+
+      {doneNote && cancelled ? (
+        <p className="text-xs text-muted">{doneNote}</p>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
         {running ? (
           <Button type="button" size="sm" variant="outline" onClick={cancel}>
             <Square className="size-3.5" />
             Cancel
           </Button>
-        ) : null}
-        {(open || running) && statusLine ? (
-          <span className="hidden max-w-[220px] truncate text-xs text-muted sm:inline">
-            {statusLine}
-          </span>
+        ) : finished ? (
+          <Button type="button" size="sm" variant="ghost" onClick={dismiss}>
+            Dismiss
+          </Button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** Fixed overlay — stays visible while Build navigates between tabs. */
+function BuildFloatingPanel() {
+  const { open, running, dismiss } = useBuildSession();
+  if (!open) return null;
+
+  return (
+    <div
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center p-3 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:justify-end sm:p-0"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="pointer-events-auto w-full max-w-md rounded-xl border border-border bg-surface p-4 shadow-xl ring-1 ring-black/5 dark:ring-white/10">
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Hammer className="size-4 text-primary" />
+              Build
+            </h3>
+            <p className="mt-0.5 text-[11px] text-muted">
+              AI scaffolds Understand → Gather → Plan → Produce. Tabs update as
+              each step finishes.
+            </p>
+          </div>
+          {!running ? (
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label="Dismiss Build panel"
+              onClick={dismiss}
+            >
+              <X className="size-3.5" />
+            </Button>
+          ) : null}
+        </div>
+        <BuildProgressBody compact />
+      </div>
+    </div>
+  );
+}
+
+export function BuildRunner({
+  variant = "panel",
+  className,
+}: BuildRunnerProps) {
+  const { running, start, cancel, hasGuideline } = useBuildSession();
+
+  if (variant === "header") {
+    return (
+      <>
+        <div className={cn("flex items-center gap-2", className)}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={start}
+            disabled={running}
+            className="gap-1.5"
+            title={
+              hasGuideline
+                ? "Build scaffold from guideline"
+                : "Build (no guideline uploaded yet)"
+            }
+          >
+            {running ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Hammer className="size-3.5" />
+            )}
+            {running ? "Building…" : "Build"}
+          </Button>
+          {running ? (
+            <Button type="button" size="sm" variant="outline" onClick={cancel}>
+              <Square className="size-3.5" />
+              Cancel
+            </Button>
+          ) : null}
+        </div>
+        <BuildFloatingPanel />
+      </>
     );
   }
 
@@ -258,9 +302,17 @@ export function BuildRunner({
             Build
           </h3>
           <p className="mt-1 text-xs text-muted">
-            AI drives the workflow from your guideline — fills brief, gather,
-            plan, and produce scaffolding. Never dumps a full deliverable.
+            One click scaffolds the whole workflow from your guideline —
+            Understand → Gather → Plan → Produce. Never dumps a full
+            deliverable. Progress stays visible while tabs update.
           </p>
+          {!hasGuideline ? (
+            <p className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+              Upload a guideline first for better results (you'll get a soft
+              warn if you Build without one).
+            </p>
+          ) : null}
         </div>
         <div className="flex gap-2">
           {running ? (
@@ -274,70 +326,13 @@ export function BuildRunner({
               Build
             </Button>
           )}
-          {open && !running ? (
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              aria-label="Dismiss"
-              onClick={() => setOpen(false)}
-            >
-              <X className="size-3.5" />
-            </Button>
-          ) : null}
         </div>
       </div>
 
-      {(running || open) && (statusLine || steps.length > 0) ? (
-        <div className="mt-3 space-y-2">
-          {statusLine ? (
-            <p className="flex items-center gap-2 text-xs font-medium text-foreground">
-              {running ? <Loader2 className="size-3.5 animate-spin" /> : null}
-              {statusLine}
-            </p>
-          ) : null}
-          <ul className="space-y-1.5">
-            {steps.map((s) => (
-              <li
-                key={s.id}
-                className={cn(
-                  "rounded-lg border px-2.5 py-2 text-xs",
-                  s.status === "running" &&
-                    "border-primary/40 bg-primary-soft/40",
-                  s.status === "done" &&
-                    "border-emerald-500/30 bg-emerald-500/5",
-                  s.status === "error" && "border-destructive/40 bg-destructive/5",
-                  s.status === "pending" && "border-border bg-surface-muted/50",
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{s.label}</span>
-                  <span className="text-[10px] uppercase tracking-wide text-muted">
-                    {s.status}
-                  </span>
-                </div>
-                {s.message ? (
-                  <p className="mt-0.5 text-muted">{s.message}</p>
-                ) : null}
-                {s.artifacts?.length ? (
-                  <p className="mt-0.5 text-muted">
-                    Wrote: {s.artifacts.join(" · ")}
-                  </p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {error ? (
-        <p className="mt-2 text-xs text-destructive">{error}</p>
-      ) : null}
-      {doneNote ? (
-        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
-          {doneNote}
-        </p>
-      ) : null}
+      <p className="mt-3 text-[11px] text-muted">
+        Progress appears in the floating Build panel (bottom-right) so it stays
+        visible while tabs update.
+      </p>
     </div>
   );
 }

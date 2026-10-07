@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import { AssignmentAiPanel } from "@/components/assignment/assignment-ai-panel";
 import { AssignmentHeader } from "@/components/assignment/assignment-header";
 import { AssignmentTabs } from "@/components/assignment/assignment-tabs";
+import { BuildProvider } from "@/components/assignment/build-context";
 import { AppShell } from "@/components/layout/app-shell";
+import { tabsForAssignmentType } from "@/lib/assignment-types";
 import type { AssignmentDetail, SidebarCourse, StudentProfile } from "@/lib/types";
 
 const labelByView: Record<string, string> = {
@@ -53,22 +55,47 @@ export function AssignmentShellClient({
     [assignment.title, view],
   );
 
+  const hasGuidelineFile = (assignment.guidelines ?? []).length > 0;
+
+  const produceTabLabel =
+    tabsForAssignmentType(assignment.assignmentType).find(
+      (t) => t.href === "draft",
+    )?.label ?? "Draft";
+
   return (
-    <AppShell
-      crumbs={crumbs}
-      profile={profile}
-      courses={courses}
-      rightPanel={
-        <AssignmentAiPanel
-          view={tab as "brief" | "notes" | "research" | "outline" | "draft" | "references"}
-          assignmentSlug={assignment.slug}
+    <BuildProvider
+      assignmentSlug={assignment.slug}
+      hasGuideline={hasGuidelineFile}
+      produceTabLabel={produceTabLabel}
+    >
+      <AppShell
+        crumbs={crumbs}
+        profile={profile}
+        courses={courses}
+        rightPanel={
+          <AssignmentAiPanel
+            view={
+              tab as
+                | "brief"
+                | "notes"
+                | "research"
+                | "outline"
+                | "draft"
+                | "references"
+            }
+            assignmentSlug={assignment.slug}
+            assignmentType={assignment.assignmentType}
+          />
+        }
+      >
+        <AssignmentHeader assignment={assignment} />
+        <AssignmentTabs
+          assignmentId={assignmentId}
+          activeTab={tab}
           assignmentType={assignment.assignmentType}
         />
-      }
-    >
-      <AssignmentHeader assignment={assignment} />
-      <AssignmentTabs assignmentId={assignmentId} activeTab={tab} assignmentType={assignment.assignmentType} />
-      {children}
-    </AppShell>
+        {children}
+      </AppShell>
+    </BuildProvider>
   );
 }

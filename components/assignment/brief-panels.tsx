@@ -139,7 +139,7 @@ export function BriefPanels({
           ) : null}
 
           {showAskAi ? (
-            <BuildRunner assignmentSlug={assignment.slug} variant="panel" />
+            <BuildRunner variant="panel" />
           ) : null}
 
           <Card className="border-border bg-surface">

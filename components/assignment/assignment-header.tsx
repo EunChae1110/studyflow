@@ -34,7 +34,7 @@ export function AssignmentHeader({ assignment }: { assignment: AssignmentDetail 
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <BuildRunner assignmentSlug={assignment.slug} variant="header" />
+          <BuildRunner variant="header" />
           <DeleteButton
             kind="assignment"
             id={assignment.slug}
