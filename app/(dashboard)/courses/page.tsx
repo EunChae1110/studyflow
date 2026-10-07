@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { BookOpen, FileCheck2, GraduationCap } from "lucide-react";
 import { requireUser } from "@/lib/auth";
@@ -8,7 +9,29 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-export default async function CoursesPage() {
+function CoursesFallback() {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <div className="h-8 w-40 animate-pulse rounded-lg bg-surface-muted" />
+          <div className="h-4 w-80 animate-pulse rounded-lg bg-surface-muted" />
+        </div>
+        <div className="h-9 w-32 animate-pulse rounded-lg bg-surface-muted" />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="h-40 animate-pulse rounded-xl border border-border bg-surface-muted"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function CoursesContent() {
   const user = await requireUser();
   const courses = await getCoursesForUser(user.id);
 
@@ -73,5 +96,13 @@ export default async function CoursesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CoursesPage() {
+  return (
+    <Suspense fallback={<CoursesFallback />}>
+      <CoursesContent />
+    </Suspense>
   );
 }

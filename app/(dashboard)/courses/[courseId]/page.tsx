@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, BookOpen } from "lucide-react";
@@ -18,8 +19,28 @@ type CoursePageProps = {
   params: Promise<{ courseId: string }>;
 };
 
-export default async function CourseDetailPage({ params }: CoursePageProps) {
-  const { courseId } = await params;
+function CourseDetailFallback() {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <div className="h-4 w-24 animate-pulse rounded bg-surface-muted" />
+        <div className="h-8 w-64 animate-pulse rounded-lg bg-surface-muted" />
+        <div className="h-4 w-40 animate-pulse rounded bg-surface-muted" />
+      </div>
+      <div className="h-6 w-28 animate-pulse rounded bg-surface-muted" />
+      <div className="space-y-3">
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className="h-36 animate-pulse rounded-xl border border-border bg-surface-muted"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function CourseDetailContent({ courseId }: { courseId: string }) {
   const user = await requireUser();
   const course = await getCourseById(courseId, user.id);
   if (!course) notFound();
@@ -116,5 +137,15 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
         )}
       </div>
     </div>
+  );
+}
+
+export default async function CourseDetailPage({ params }: CoursePageProps) {
+  const { courseId } = await params;
+
+  return (
+    <Suspense fallback={<CourseDetailFallback />}>
+      <CourseDetailContent courseId={courseId} />
+    </Suspense>
   );
 }
