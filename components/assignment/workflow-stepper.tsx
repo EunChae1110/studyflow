@@ -1,14 +1,29 @@
 import { Check } from "lucide-react";
-import { workflowSteps } from "@/lib/mock-data";
+import { deriveWorkflowSteps, workflowSteps as defaultSteps } from "@/lib/constants";
+import type { WorkflowStep } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function WorkflowStepper() {
+export function WorkflowStepper({
+  progress,
+  steps,
+}: {
+  progress?: number;
+  steps?: WorkflowStep[];
+}) {
+  const resolved =
+    steps ?? (typeof progress === "number" ? deriveWorkflowSteps(progress) : defaultSteps);
+
   return (
     <div className="mb-5 rounded-xl border border-border bg-surface px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
-        {workflowSteps.map((step, index) => (
+        {resolved.map((step, index) => (
           <div key={step.label} className="flex items-center">
-            <div className={cn("flex items-center gap-2 text-xs text-muted", step.state === "current" && "text-foreground")}>
+            <div
+              className={cn(
+                "flex items-center gap-2 text-xs text-muted",
+                step.state === "current" && "text-foreground",
+              )}
+            >
               <span
                 className={cn(
                   "grid size-6 place-items-center rounded-full border text-[11px] font-semibold",
@@ -21,7 +36,7 @@ export function WorkflowStepper() {
               </span>
               <span className="font-medium">{step.label}</span>
             </div>
-            {index < workflowSteps.length - 1 ? (
+            {index < resolved.length - 1 ? (
               <span
                 className={cn(
                   "mx-2 h-0.5 w-6 rounded",

@@ -82,6 +82,14 @@ export const assignments = pgTable("assignments", {
   status: assignmentStatusEnum("status").default("not_started").notNull(),
   supportMode: varchar("support_mode", { length: 120 }),
   nextAction: text("next_action"),
+  requirements: jsonb("requirements")
+    .$type<Array<{ title: string; note: string; done: boolean }>>()
+    .default([])
+    .notNull(),
+  rubric: jsonb("rubric")
+    .$type<Array<{ criterion: string; weight: string }>>()
+    .default([])
+    .notNull(),
   ...timestamps,
 });
 
@@ -94,6 +102,28 @@ export const notes = pgTable("notes", {
   body: text("body").notNull().default(""),
   sourceLabel: varchar("source_label", { length: 255 }),
   page: varchar("page", { length: 64 }),
+  ...timestamps,
+});
+
+export const courseMaterials = pgTable("course_materials", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  assignmentId: uuid("assignment_id")
+    .notNull()
+    .references(() => assignments.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  pages: integer("pages"),
+  status: varchar("status", { length: 64 }).default("Indexed").notNull(),
+  ...timestamps,
+});
+
+export const researchQuestions = pgTable("research_questions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  assignmentId: uuid("assignment_id")
+    .notNull()
+    .references(() => assignments.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 500 }).notNull(),
+  active: boolean("active").default(false).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
   ...timestamps,
 });
 
@@ -213,6 +243,8 @@ export const assignmentsRelations = relations(assignments, ({ one, many }) => ({
   user: one(users, { fields: [assignments.userId], references: [users.id] }),
   course: one(courses, { fields: [assignments.courseId], references: [courses.id] }),
   notes: many(notes),
+  courseMaterials: many(courseMaterials),
+  researchQuestions: many(researchQuestions),
   researchSources: many(researchSources),
   references: many(referencesTable),
   claims: many(claims),

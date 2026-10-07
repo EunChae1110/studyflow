@@ -7,6 +7,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { MobileSidebarContent } from "@/components/layout/mobile-sidebar-content";
 import { Crumb, Topbar } from "@/components/layout/topbar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import type { StudentProfile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type AppShellProps = {
@@ -14,9 +15,18 @@ type AppShellProps = {
   children: React.ReactNode;
   rightPanel?: React.ReactNode;
   mainClassName?: string;
+  profile?: StudentProfile;
+  courseLabels?: string[];
 };
 
-export function AppShell({ crumbs, children, rightPanel, mainClassName }: AppShellProps) {
+export function AppShell({
+  crumbs,
+  children,
+  rightPanel,
+  mainClassName,
+  profile,
+  courseLabels,
+}: AppShellProps) {
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const [mobileAiOpen, setMobileAiOpen] = React.useState(false);
@@ -24,12 +34,18 @@ export function AppShell({ crumbs, children, rightPanel, mainClassName }: AppShe
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex min-h-screen">
-        <AppSidebar collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} />
+        <AppSidebar
+          collapsed={collapsed}
+          onToggle={() => setCollapsed((v) => !v)}
+          profile={profile}
+          courseLabels={courseLabels}
+        />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <Topbar
             crumbs={crumbs}
             onOpenSidebar={() => setMobileNavOpen(true)}
             onOpenAi={rightPanel ? () => setMobileAiOpen(true) : undefined}
+            profile={profile}
           />
 
           <div className={cn("flex min-h-0 flex-1", mainClassName)}>
@@ -62,7 +78,11 @@ export function AppShell({ crumbs, children, rightPanel, mainClassName }: AppShe
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
         <SheetContent side="left" className="w-[310px] p-0">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <MobileSidebarContent onNavigate={() => setMobileNavOpen(false)} />
+          <MobileSidebarContent
+            onNavigate={() => setMobileNavOpen(false)}
+            profile={profile}
+            courseLabels={courseLabels}
+          />
         </SheetContent>
       </Sheet>
 

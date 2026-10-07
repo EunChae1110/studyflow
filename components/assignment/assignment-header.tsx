@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Download, Share2, Shield, Sparkles } from "lucide-react";
-import { assignment } from "@/lib/mock-data";
+import type { AssignmentDetail } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-export function AssignmentHeader() {
+export function AssignmentHeader({ assignment }: { assignment: AssignmentDetail }) {
   return (
     <section className="mb-5 space-y-3">
       <Link href="/dashboard" className="inline-flex text-xs font-medium text-muted hover:text-foreground">
@@ -15,15 +15,19 @@ export function AssignmentHeader() {
           <h1 className="text-2xl font-semibold">{assignment.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{assignment.course}</Badge>
-            <Badge variant="outline">{assignment.wordLimit}</Badge>
-            <Badge variant="outline">{assignment.citationStyle}</Badge>
+            {assignment.wordLimit ? <Badge variant="outline">{assignment.wordLimit}</Badge> : null}
+            {assignment.citationStyle ? (
+              <Badge variant="outline">{assignment.citationStyle}</Badge>
+            ) : null}
             <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
               {assignment.due}
             </Badge>
-            <Badge className="bg-primary-soft text-primary">
-              <Shield className="size-3" />
-              {assignment.supportMode}
-            </Badge>
+            {assignment.supportMode ? (
+              <Badge className="bg-primary-soft text-primary">
+                <Shield className="size-3" />
+                {assignment.supportMode}
+              </Badge>
+            ) : null}
           </div>
         </div>
         <div className="flex gap-2">

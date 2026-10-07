@@ -1,10 +1,59 @@
+import { Suspense } from "react";
 import { Search, ShieldCheck } from "lucide-react";
-import { researchSources } from "@/lib/mock-data";
+import { getResearchSources } from "@/lib/db/queries";
 import { SourceKindLegend } from "@/components/research/source-kind-legend";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+
+async function SourceGrid() {
+  const sources = await getResearchSources({ limit: 50 });
+
+  if (sources.length === 0) {
+    return (
+      <Card className="border-border bg-surface">
+        <CardContent className="p-6 text-sm text-muted">
+          No sources in your library yet. Add research from an assignment&apos;s Research tab.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 xl:grid-cols-2">
+      {sources.map((source) => (
+        <Card key={source.id} className="border-border bg-surface">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-base leading-6">{source.title}</CardTitle>
+            <p className="text-xs text-muted">
+              {source.authors ?? "Unknown authors"} · {source.venue ?? "Unknown venue"}
+              {source.year ? ` · ${source.year}` : ""}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-muted">DOI: {source.doi ?? "—"}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {source.verified ? (
+                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  <ShieldCheck className="size-3" />
+                  Student verified
+                </Badge>
+              ) : (
+                <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                  Needs review
+                </Badge>
+              )}
+              {source.openAccess ? (
+                <Badge className="bg-primary-soft text-primary">Open access</Badge>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default function ResearchLibraryPage() {
   return (
@@ -27,34 +76,9 @@ export default function ResearchLibraryPage() {
 
       <SourceKindLegend />
 
-      <div className="grid gap-3 xl:grid-cols-2">
-        {researchSources.map((source) => (
-          <Card key={source.doi} className="border-border bg-surface">
-            <CardHeader className="space-y-1">
-              <CardTitle className="text-base leading-6">{source.title}</CardTitle>
-              <p className="text-xs text-muted">
-                {source.authors} · {source.venue} · {source.year}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <p className="text-xs text-muted">DOI: {source.doi}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {source.verified ? (
-                  <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                    <ShieldCheck className="size-3" />
-                    Student verified
-                  </Badge>
-                ) : (
-                  <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                    Needs review
-                  </Badge>
-                )}
-                {source.openAccess ? <Badge className="bg-primary-soft text-primary">Open access</Badge> : null}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Suspense fallback={<div className="h-48 animate-pulse rounded-xl bg-surface-muted" />}>
+        <SourceGrid />
+      </Suspense>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { Bell, Bot, Menu, Search } from "lucide-react";
-import { studentProfile } from "@/lib/mock-data";
+import { EMPTY_STUDENT_PROFILE } from "@/lib/constants";
+import type { StudentProfile } from "@/lib/types";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -13,9 +14,18 @@ type TopbarProps = {
   onOpenSidebar: () => void;
   onOpenAi?: () => void;
   className?: string;
+  profile?: StudentProfile;
 };
 
-export function Topbar({ crumbs, onOpenSidebar, onOpenAi, className }: TopbarProps) {
+export function Topbar({
+  crumbs,
+  onOpenSidebar,
+  onOpenAi,
+  className,
+  profile,
+}: TopbarProps) {
+  const initials = profile?.initials?.trim() || EMPTY_STUDENT_PROFILE.initials;
+
   return (
     <header
       className={cn(
@@ -67,7 +77,7 @@ export function Topbar({ crumbs, onOpenSidebar, onOpenAi, className }: TopbarPro
           <span className="absolute top-1 right-1 size-1.5 rounded-full bg-[var(--danger)]" />
         </Button>
         <div className="grid size-8 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-          {studentProfile.initials}
+          {initials}
         </div>
       </div>
     </header>

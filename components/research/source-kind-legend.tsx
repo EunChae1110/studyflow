@@ -1,4 +1,4 @@
-import { sourceKinds } from "@/lib/mock-data";
+import { sourceKinds } from "@/lib/constants";
 
 export function SourceKindLegend() {
   return (

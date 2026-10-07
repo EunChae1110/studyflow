@@ -1,15 +1,15 @@
 import { Suspense } from "react";
 import { ContinueWorkingCard, DashboardSplitPanels } from "@/components/dashboard/dashboard-panels";
 import { StatsOverview } from "@/components/dashboard/stats-overview";
-import { getDashboardSummary } from "@/lib/db/queries";
+import {
+  getDashboardStats,
+  getDashboardSummary,
+  getDeadlines,
+  getResearchSources,
+} from "@/lib/db/queries";
 
-function DashboardHeaderFallback() {
-  return (
-    <section className="space-y-2">
-      <div className="h-8 w-64 animate-pulse rounded-md bg-surface-muted" />
-      <div className="h-4 w-80 animate-pulse rounded-md bg-surface-muted" />
-    </section>
-  );
+function SkeletonBlock({ className }: { className?: string }) {
+  return <div className={`animate-pulse rounded-xl bg-surface-muted ${className ?? ""}`} />;
 }
 
 async function DashboardHeader() {
@@ -21,25 +21,50 @@ async function DashboardHeader() {
       <p className="text-sm text-muted">
         You have {summary.assignmentCount} assignment
         {summary.assignmentCount === 1 ? "" : "s"} to work on this week.
-        {summary.source === "database" ? (
-          <span className="ml-2 text-[11px] text-muted">· live data</span>
-        ) : (
-          <span className="ml-2 text-[11px] text-muted">· mock data</span>
-        )}
       </p>
     </section>
+  );
+}
+
+async function DashboardStatsSection() {
+  const { stats, weeklyProgress } = await getDashboardStats();
+  return <StatsOverview stats={stats} weeklyProgress={weeklyProgress} />;
+}
+
+async function DashboardMainPanels() {
+  const [summary, deadlines, sources] = await Promise.all([
+    getDashboardSummary(),
+    getDeadlines(5),
+    getResearchSources({ limit: 5 }),
+  ]);
+
+  return (
+    <>
+      <ContinueWorkingCard assignment={summary.assignments[0] ?? null} />
+      <DashboardSplitPanels deadlines={deadlines} sources={sources} />
+    </>
   );
 }
 
 export default function DashboardPage() {
   return (
     <div className="space-y-4">
-      <Suspense fallback={<DashboardHeaderFallback />}>
+      <Suspense
+        fallback={
+          <section className="space-y-2">
+            <SkeletonBlock className="h-8 w-64" />
+            <SkeletonBlock className="h-4 w-80" />
+          </section>
+        }
+      >
         <DashboardHeader />
       </Suspense>
-      <StatsOverview />
-      <ContinueWorkingCard />
-      <DashboardSplitPanels />
+      <Suspense fallback={<SkeletonBlock className="h-64 w-full" />}>
+        <DashboardStatsSection />
+      </Suspense>
+      <Suspense fallback={<SkeletonBlock className="h-80 w-full" />}>
+        <DashboardMainPanels />
+      </Suspense>
     </div>
   );
 }

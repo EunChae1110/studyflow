@@ -1,27 +1,26 @@
+import { Suspense } from "react";
 import { CalendarDays, Clock4 } from "lucide-react";
-import { deadlines } from "@/lib/mock-data";
+import { getDeadlines } from "@/lib/db/queries";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function CalendarPage() {
+async function DeadlineList() {
+  const deadlines = await getDeadlines(30);
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Calendar</h1>
-        <p className="text-sm text-muted">
-          Track due dates and plan verification checkpoints before drafting.
-        </p>
-      </div>
-      <Card className="border-border bg-surface">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CalendarDays className="size-4 text-primary" />
-            Upcoming deadlines
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {deadlines.map((item) => (
-            <div key={item.title} className="flex items-center gap-3 rounded-lg border border-border p-3">
+    <Card className="border-border bg-surface">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CalendarDays className="size-4 text-primary" />
+          Upcoming deadlines
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {deadlines.length === 0 ? (
+          <p className="text-sm text-muted">No deadlines yet. Assignments with due dates appear here.</p>
+        ) : (
+          deadlines.map((item) => (
+            <div key={item.slug} className="flex items-center gap-3 rounded-lg border border-border p-3">
               <Clock4 className="size-4 text-muted" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{item.title}</p>
@@ -41,9 +40,25 @@ export default function CalendarPage() {
                 {item.daysLeft}
               </Badge>
             </div>
-          ))}
-        </CardContent>
-      </Card>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function CalendarPage() {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-semibold">Calendar</h1>
+        <p className="text-sm text-muted">
+          Track due dates and plan verification checkpoints before drafting.
+        </p>
+      </div>
+      <Suspense fallback={<div className="h-48 animate-pulse rounded-xl bg-surface-muted" />}>
+        <DeadlineList />
+      </Suspense>
     </div>
   );
 }

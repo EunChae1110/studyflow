@@ -1,6 +1,6 @@
 import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Citation } from "@/lib/mock-data";
+import type { Citation } from "@/lib/types";
 
 const labelMap: Record<Citation["kind"], string> = {
   "lecture-notes": "Lecture notes",

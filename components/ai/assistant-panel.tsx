@@ -2,7 +2,6 @@
 
 import { Sparkles, X } from "lucide-react";
 import { StudyflowChat } from "@/components/ai/studyflow-chat";
-import { PromptBar } from "@/components/ai/prompt-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,6 +16,8 @@ type AssistantPanelProps = {
   promptChips?: string[];
   showAttach?: boolean;
   live?: boolean;
+  assignmentId?: string;
+  seedQuestions?: string[];
   children?: React.ReactNode;
 };
 
@@ -30,6 +31,8 @@ export function AssistantPanel({
   promptChips,
   showAttach = true,
   live = false,
+  assignmentId,
+  seedQuestions,
   children,
 }: AssistantPanelProps) {
   return (
@@ -64,20 +67,15 @@ export function AssistantPanel({
           hint={promptHint}
           extraChips={promptChips}
           showAttach={showAttach}
+          assignmentId={assignmentId}
+          seedQuestions={seedQuestions}
         />
       ) : (
-        <>
-          <div className="study-scroll flex-1 space-y-4 overflow-y-auto p-4">{children}</div>
-          <div className="border-t border-border bg-background p-3">
-            <PromptBar
-              mode={activeMode}
-              placeholder={promptPlaceholder}
-              hint={promptHint}
-              extraChips={promptChips}
-              showAttach={showAttach}
-            />
-          </div>
-        </>
+        <div className="study-scroll flex-1 space-y-4 overflow-y-auto p-4">
+          {children ?? (
+            <p className="text-sm text-muted">Ask a question to get started.</p>
+          )}
+        </div>
       )}
     </section>
   );

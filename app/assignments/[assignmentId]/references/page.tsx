@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { AlertTriangle } from "lucide-react";
 import { ReferencesTable } from "@/components/research/references-table";
+import { getReferences } from "@/lib/db/queries";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -10,7 +12,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export default function AssignmentReferencesPage() {
+async function ReferencesContent({ assignmentId }: { assignmentId: string }) {
+  const references = await getReferences(assignmentId);
+  const incomplete = references.filter((r) => r.status === "Incomplete").length;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
@@ -38,14 +43,17 @@ export default function AssignmentReferencesPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-amber-300 bg-amber-100/55 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/25 dark:text-amber-200">
-        <p className="inline-flex items-start gap-2">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          1 source has incomplete metadata. Fill missing fields before exporting your reference list.
-        </p>
-      </div>
+      {incomplete > 0 ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-100/55 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/25 dark:text-amber-200">
+          <p className="inline-flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            {incomplete} source{incomplete === 1 ? " has" : "s have"} incomplete metadata. Fill
+            missing fields before exporting your reference list.
+          </p>
+        </div>
+      ) : null}
 
-      <ReferencesTable />
+      <ReferencesTable references={references} />
 
       <Card className="border-border bg-surface">
         <CardHeader>
@@ -58,5 +66,18 @@ export default function AssignmentReferencesPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default async function AssignmentReferencesPage({
+  params,
+}: {
+  params: Promise<{ assignmentId: string }>;
+}) {
+  const { assignmentId } = await params;
+  return (
+    <Suspense fallback={<div className="h-64 animate-pulse rounded-xl bg-surface-muted" />}>
+      <ReferencesContent assignmentId={assignmentId} />
+    </Suspense>
   );
 }

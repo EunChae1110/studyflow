@@ -11,19 +11,18 @@ import {
 
 export const workspaceNav = [
   { href: "/dashboard", label: "Overview", icon: Home },
-  { href: "/assignments", label: "Assignments", icon: FileText, count: 3 },
+  { href: "/assignments", label: "Assignments", icon: FileText },
   { href: "/calendar", label: "Calendar", icon: Calendar },
 ];
 
+/** Static fallback when courses have not loaded yet — prefer DB courses in shell. */
 export const courseNav = [
-  { href: "/courses", label: "Database Systems", icon: BookOpen },
-  { href: "/courses", label: "Academic English", icon: BookOpen },
-  { href: "/courses", label: "Economics", icon: BookOpen },
+  { href: "/courses", label: "Courses", icon: BookOpen },
 ];
 
 export const toolNav = [
   { href: "/research-library", label: "Research Library", icon: LibraryBig },
-  { href: "/assignments/database-normalisation-report/references", label: "Saved References", icon: Bookmark },
+  { href: "/research-library", label: "Saved References", icon: Bookmark },
 ];
 
 export const bottomNav = [

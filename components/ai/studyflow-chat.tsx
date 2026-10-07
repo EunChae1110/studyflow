@@ -17,6 +17,7 @@ type StudyflowChatProps = {
   extraChips?: string[];
   showAttach?: boolean;
   seedQuestions?: string[];
+  assignmentId?: string;
 };
 
 function messageText(message: {
@@ -35,6 +36,7 @@ export function StudyflowChat({
   extraChips,
   showAttach = true,
   seedQuestions = [],
+  assignmentId,
 }: StudyflowChatProps) {
   const [conversationId] = React.useState(() => crypto.randomUUID());
   const [modelId, setModelId] = React.useState(DEFAULT_MODEL_ID);
@@ -47,9 +49,10 @@ export function StudyflowChat({
           mode,
           conversationId,
           model: modelId,
+          ...(assignmentId ? { assignmentId } : {}),
         },
       }),
-    [mode, conversationId, modelId],
+    [mode, conversationId, modelId, assignmentId],
   );
 
   const { messages, sendMessage, status, stop, error } = useChat({

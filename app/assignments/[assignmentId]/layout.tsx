@@ -1,19 +1,53 @@
 import { Suspense } from "react";
+import { notFound } from "next/navigation";
 import { AssignmentShellClient } from "@/components/assignment/assignment-shell-client";
-import { assignment } from "@/lib/mock-data";
-
-export function generateStaticParams() {
-  return [{ assignmentId: assignment.id }];
-}
+import {
+  getAssignmentBySlug,
+  getCoursesForUser,
+  getStudentProfile,
+} from "@/lib/db/queries";
 
 type AssignmentLayoutProps = {
   children: React.ReactNode;
+  params: Promise<{ assignmentId: string }>;
 };
 
-export default function AssignmentLayout({ children }: AssignmentLayoutProps) {
+async function AssignmentShell({
+  children,
+  assignmentId,
+}: {
+  children: React.ReactNode;
+  assignmentId: string;
+}) {
+  const [assignment, profile, courses] = await Promise.all([
+    getAssignmentBySlug(assignmentId),
+    getStudentProfile(),
+    getCoursesForUser(),
+  ]);
+
+  if (!assignment) notFound();
+
+  return (
+    <AssignmentShellClient
+      assignmentId={assignment.slug}
+      assignment={assignment}
+      profile={profile}
+      courseLabels={courses.map((c) => c.name)}
+    >
+      {children}
+    </AssignmentShellClient>
+  );
+}
+
+export default async function AssignmentLayout({
+  children,
+  params,
+}: AssignmentLayoutProps) {
+  const { assignmentId } = await params;
+
   return (
     <Suspense fallback={<div className="min-h-screen bg-background" />}>
-      <AssignmentShellClient assignmentId={assignment.id}>{children}</AssignmentShellClient>
+      <AssignmentShell assignmentId={assignmentId}>{children}</AssignmentShell>
     </Suspense>
   );
 }

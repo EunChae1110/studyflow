@@ -2,14 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BookOpen } from "lucide-react";
 import { StudyFlowLockup } from "@/components/brand/studyflow-logo";
-import { studentProfile } from "@/lib/mock-data";
-import { courseNav, supportNav, toolNav, workspaceNav } from "@/lib/navigation";
-import { Badge } from "@/components/ui/badge";
+import { APP_TAGLINE } from "@/lib/constants";
+import { supportNav, toolNav, workspaceNav } from "@/lib/navigation";
+import type { StudentProfile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function MobileSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+export function MobileSidebarContent({
+  onNavigate,
+  profile,
+  courseLabels = [],
+}: {
+  onNavigate?: () => void;
+  profile?: StudentProfile;
+  courseLabels?: string[];
+}) {
   const pathname = usePathname();
+  const tagline = profile?.tagline?.trim() || APP_TAGLINE;
 
   return (
     <div className="h-full overflow-y-auto bg-surface p-4">
@@ -20,25 +30,36 @@ export function MobileSidebarContent({ onNavigate }: { onNavigate?: () => void }
       />
 
       <MobileGroup title="Workspace">
-        {workspaceNav.map(({ href, label, icon: Icon, count }) => {
+        {workspaceNav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <MobileItem key={label} href={href} active={active} onNavigate={onNavigate}>
               <Icon className="size-4.5" />
               <span>{label}</span>
-              {count ? <Badge className="ml-auto rounded-full px-1.5 text-[11px]">{count}</Badge> : null}
             </MobileItem>
           );
         })}
       </MobileGroup>
 
       <MobileGroup title="Courses">
-        {courseNav.map(({ href, label, icon: Icon }) => (
-          <MobileItem key={label} href={href} active={pathname === href} onNavigate={onNavigate}>
-            <Icon className="size-4.5" />
-            <span>{label}</span>
+        {courseLabels.length === 0 ? (
+          <MobileItem href="/courses" active={pathname === "/courses"} onNavigate={onNavigate}>
+            <BookOpen className="size-4.5" />
+            <span className="text-muted">No courses yet</span>
           </MobileItem>
-        ))}
+        ) : (
+          courseLabels.map((label) => (
+            <MobileItem
+              key={label}
+              href="/courses"
+              active={pathname === "/courses"}
+              onNavigate={onNavigate}
+            >
+              <BookOpen className="size-4.5" />
+              <span>{label}</span>
+            </MobileItem>
+          ))
+        )}
       </MobileGroup>
 
       <MobileGroup title="Tools">
@@ -62,7 +83,7 @@ export function MobileSidebarContent({ onNavigate }: { onNavigate?: () => void }
         ))}
       </div>
 
-      <p className="mt-4 text-xs text-muted">{studentProfile.tagline}</p>
+      <p className="mt-4 text-xs text-muted">{tagline}</p>
     </div>
   );
 }

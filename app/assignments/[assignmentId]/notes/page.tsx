@@ -1,29 +1,37 @@
+import { Suspense } from "react";
 import { BookOpen, HelpCircle, Lightbulb, Search } from "lucide-react";
 import { StudyflowChat } from "@/components/ai/studyflow-chat";
-import { aiMessages, courseMaterials } from "@/lib/mock-data";
+import { getCourseMaterials } from "@/lib/db/queries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-export default function AssignmentNotesPage() {
+async function NotesWorkspace({ assignmentId }: { assignmentId: string }) {
+  const materials = await getCourseMaterials(assignmentId);
+
   return (
     <div className="grid min-h-[640px] overflow-hidden rounded-xl border border-border bg-surface lg:grid-cols-[260px_1fr]">
       <aside className="study-scroll border-b border-border bg-surface p-4 lg:border-r lg:border-b-0">
         <h3 className="mb-3 text-sm font-semibold">Course materials</h3>
         <div className="space-y-1">
-          {courseMaterials.map((doc, index) => (
-            <button
-              type="button"
-              key={doc.title}
-              className={`w-full rounded-lg px-3 py-2 text-left ${
-                index === 0 ? "bg-primary-soft text-primary" : "hover:bg-surface-muted"
-              }`}
-            >
-              <p className="text-sm font-medium">{doc.title}</p>
-              <p className="text-xs text-muted">
-                {doc.pages} pages · {doc.status}
-              </p>
-            </button>
-          ))}
+          {materials.length === 0 ? (
+            <p className="px-1 text-xs text-muted">No materials uploaded yet.</p>
+          ) : (
+            materials.map((doc, index) => (
+              <button
+                type="button"
+                key={doc.id}
+                className={`w-full rounded-lg px-3 py-2 text-left ${
+                  index === 0 ? "bg-primary-soft text-primary" : "hover:bg-surface-muted"
+                }`}
+              >
+                <p className="text-sm font-medium">{doc.title}</p>
+                <p className="text-xs text-muted">
+                  {doc.pages != null ? `${doc.pages} pages · ` : ""}
+                  {doc.status}
+                </p>
+              </button>
+            ))
+          )}
         </div>
         <Button variant="outline" size="sm" className="mt-4 w-full">
           + Upload material
@@ -46,14 +54,28 @@ export default function AssignmentNotesPage() {
           mode="Notes-only"
           placeholder="Ask about your lecture materials..."
           hint="External sources disabled. Answers are grounded only in your course materials."
-          extraChips={["Lecture 04 in context"]}
+          extraChips={materials[0] ? [materials[0].title] : undefined}
+          assignmentId={assignmentId}
           seedQuestions={[
-            aiMessages.notes.firstQuestion,
-            aiMessages.notes.secondQuestion,
+            "Summarise the key definitions in my lecture notes",
+            "What should I verify before using a claim from these notes?",
           ]}
         />
       </section>
     </div>
+  );
+}
+
+export default async function AssignmentNotesPage({
+  params,
+}: {
+  params: Promise<{ assignmentId: string }>;
+}) {
+  const { assignmentId } = await params;
+  return (
+    <Suspense fallback={<div className="h-[640px] animate-pulse rounded-xl bg-surface-muted" />}>
+      <NotesWorkspace assignmentId={assignmentId} />
+    </Suspense>
   );
 }
 

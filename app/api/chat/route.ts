@@ -8,9 +8,10 @@ import { getChatModel, hasAiCredentials } from "@/lib/ai/provider";
 import { buildModeInstruction, STUDYFLOW_SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { isDatabaseConfigured } from "@/lib/db";
 import {
-  ensureDemoUserAndAssignment,
+  ensureChatUser,
   getOrCreateConversation,
   persistChatMessage,
+  resolveAssignmentId,
 } from "@/lib/db/queries";
 
 export const maxDuration = 60;
@@ -54,11 +55,12 @@ export async function POST(req: Request) {
 
   if (isDatabaseConfigured()) {
     try {
-      const demo = await ensureDemoUserAndAssignment();
-      if (demo) {
+      const chatUser = await ensureChatUser();
+      if (chatUser) {
+        const assignmentUuid = await resolveAssignmentId(body.assignmentId);
         const conversation = await getOrCreateConversation({
-          userId: demo.userId,
-          assignmentId: demo.assignmentId,
+          userId: chatUser.userId,
+          assignmentId: assignmentUuid,
           mode,
           conversationId,
         });

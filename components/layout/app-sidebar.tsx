@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { studentProfile } from "@/lib/mock-data";
-import { courseNav, supportNav, toolNav, workspaceNav } from "@/lib/navigation";
+import { BookOpen, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { APP_TAGLINE } from "@/lib/constants";
+import { supportNav, toolNav, workspaceNav } from "@/lib/navigation";
+import type { StudentProfile } from "@/lib/types";
 import { StudyFlowLockup, StudyFlowMark } from "@/components/brand/studyflow-logo";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -15,10 +15,19 @@ type SidebarProps = {
   collapsed: boolean;
   onToggle: () => void;
   className?: string;
+  profile?: StudentProfile;
+  courseLabels?: string[];
 };
 
-export function AppSidebar({ collapsed, onToggle, className }: SidebarProps) {
+export function AppSidebar({
+  collapsed,
+  onToggle,
+  className,
+  profile,
+  courseLabels = [],
+}: SidebarProps) {
   const pathname = usePathname();
+  const tagline = profile?.tagline?.trim() || APP_TAGLINE;
 
   return (
     <motion.aside
@@ -51,29 +60,36 @@ export function AppSidebar({ collapsed, onToggle, className }: SidebarProps) {
       </div>
 
       <SidebarGroup title="Workspace" collapsed={collapsed}>
-        {workspaceNav.map(({ href, label, icon: Icon, count }) => {
+        {workspaceNav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <SidebarItem key={label} href={href} active={active} collapsed={collapsed}>
               <Icon className="size-4.5" />
-              {!collapsed && (
-                <>
-                  <span>{label}</span>
-                  {count ? <Badge className="ml-auto rounded-full px-1.5 text-[11px]">{count}</Badge> : null}
-                </>
-              )}
+              {!collapsed && <span>{label}</span>}
             </SidebarItem>
           );
         })}
       </SidebarGroup>
 
       <SidebarGroup title="Courses" collapsed={collapsed}>
-        {courseNav.map(({ href, label, icon: Icon }) => (
-          <SidebarItem key={label} href={href} active={pathname === href} collapsed={collapsed}>
-            <Icon className="size-4.5" />
-            {!collapsed && <span>{label}</span>}
+        {courseLabels.length === 0 ? (
+          <SidebarItem href="/courses" active={pathname === "/courses"} collapsed={collapsed}>
+            <BookOpen className="size-4.5" />
+            {!collapsed && <span className="text-muted">No courses yet</span>}
           </SidebarItem>
-        ))}
+        ) : (
+          courseLabels.map((label) => (
+            <SidebarItem
+              key={label}
+              href="/courses"
+              active={pathname === "/courses"}
+              collapsed={collapsed}
+            >
+              <BookOpen className="size-4.5" />
+              {!collapsed && <span>{label}</span>}
+            </SidebarItem>
+          ))
+        )}
       </SidebarGroup>
 
       <SidebarGroup title="Tools" collapsed={collapsed}>
@@ -97,11 +113,7 @@ export function AppSidebar({ collapsed, onToggle, className }: SidebarProps) {
         ))}
       </div>
 
-      {!collapsed && (
-        <p className="px-4 pb-3 text-xs text-muted">
-          {studentProfile.tagline}
-        </p>
-      )}
+      {!collapsed && <p className="px-4 pb-3 text-xs text-muted">{tagline}</p>}
     </motion.aside>
   );
 }
@@ -153,3 +165,4 @@ function SidebarItem({
     </Link>
   );
 }
+

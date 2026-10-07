@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { assignmentTabs } from "@/lib/mock-data";
+import { assignmentTabs } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export function AssignmentTabs({

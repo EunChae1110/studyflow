@@ -1,10 +1,12 @@
 "use client";
 
+import { flexRender } from "@tanstack/react-table";
 import {
-  flexRender,
-} from "@tanstack/react-table";
-import { getCoreRowModel, type LegacyColumnDef, useLegacyTable } from "@tanstack/react-table/legacy";
-import { references } from "@/lib/mock-data";
+  getCoreRowModel,
+  type LegacyColumnDef,
+  useLegacyTable,
+} from "@tanstack/react-table/legacy";
+import type { ReferenceItem } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,13 +18,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type ReferenceRow = (typeof references)[number];
-
-const columns: LegacyColumnDef<ReferenceRow, unknown>[] = [
+const columns: LegacyColumnDef<ReferenceItem, unknown>[] = [
   {
     header: "Source",
-    accessorFn: (row: ReferenceRow) => row.source,
-    cell: ({ row }: { row: { original: ReferenceRow } }) => (
+    accessorFn: (row: ReferenceItem) => row.source,
+    cell: ({ row }: { row: { original: ReferenceItem } }) => (
       <div>
         <p className="font-medium">{row.original.source}</p>
         <p className="text-xs text-muted">{row.original.title}</p>
@@ -32,21 +32,26 @@ const columns: LegacyColumnDef<ReferenceRow, unknown>[] = [
   {
     header: "Type",
     accessorKey: "type",
-    cell: ({ row }: { row: { original: ReferenceRow } }) => <Badge variant="secondary">{row.original.type}</Badge>,
+    cell: ({ row }: { row: { original: ReferenceItem } }) => (
+      <Badge variant="secondary">{row.original.type ?? "—"}</Badge>
+    ),
   },
   {
     header: "Year",
     accessorKey: "year",
+    cell: ({ row }: { row: { original: ReferenceItem } }) => row.original.year ?? "—",
   },
   {
     header: "DOI / ID",
     accessorKey: "doi",
-    cell: ({ row }: { row: { original: ReferenceRow } }) => <span className="text-xs">{row.original.doi}</span>,
+    cell: ({ row }: { row: { original: ReferenceItem } }) => (
+      <span className="text-xs">{row.original.doi ?? "—"}</span>
+    ),
   },
   {
     header: "Status",
     accessorKey: "status",
-    cell: ({ row }: { row: { original: ReferenceRow } }) => {
+    cell: ({ row }: { row: { original: ReferenceItem } }) => {
       const status = row.original.status;
       const className =
         status === "Verified"
@@ -63,7 +68,7 @@ const columns: LegacyColumnDef<ReferenceRow, unknown>[] = [
   {
     id: "action",
     header: "",
-    cell: ({ row }: { row: { original: ReferenceRow } }) => (
+    cell: ({ row }: { row: { original: ReferenceItem } }) => (
       <Button size="sm" variant={row.original.status === "Incomplete" ? "secondary" : "ghost"}>
         {row.original.status === "Incomplete" ? "Fix metadata" : "Edit"}
       </Button>
@@ -71,12 +76,20 @@ const columns: LegacyColumnDef<ReferenceRow, unknown>[] = [
   },
 ];
 
-export function ReferencesTable() {
+export function ReferencesTable({ references }: { references: ReferenceItem[] }) {
   const table = useLegacyTable({
-    data: references as ReferenceRow[],
+    data: references,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  if (references.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center text-sm text-muted">
+        No references yet. Verified sources will appear here.
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
