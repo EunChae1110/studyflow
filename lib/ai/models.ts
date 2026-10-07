@@ -7,11 +7,11 @@ export type StudyflowModelOption = {
 
 const GPT_MODEL_ID =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_AI_MODEL_GPT?.trim()) ||
-  "gpt-4o-mini";
+  "gpt-6.1-sol";
 
 const CLAUDE_MODEL_ID =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_AI_MODEL_CLAUDE?.trim()) ||
-  "claude-3-5-sonnet";
+  "claude-opus-5.5";
 
 /**
  * Model ids are OpenAI-compatible names expected by the mid-station (中轉站).
