@@ -1,12 +1,19 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { BookOpen, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { APP_TAGLINE } from "@/lib/constants";
-import { supportNav, toolNav, workspaceNav } from "@/lib/navigation";
-import type { StudentProfile } from "@/lib/types";
+import {
+  isPathActive,
+  isToolActive,
+  supportNav,
+  toolNav,
+  workspaceNav,
+} from "@/lib/navigation";
+import type { SidebarCourse, StudentProfile } from "@/lib/types";
 import { StudyFlowLockup, StudyFlowMark } from "@/components/brand/studyflow-logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,23 +23,46 @@ type SidebarProps = {
   onToggle: () => void;
   className?: string;
   profile?: StudentProfile;
+  courses?: SidebarCourse[];
+  /** @deprecated prefer `courses` */
   courseLabels?: string[];
   preview?: boolean;
   previewActivePath?: string;
 };
 
-export function AppSidebar({
+export function AppSidebar(props: SidebarProps) {
+  return (
+    <React.Suspense fallback={<AppSidebarFrame {...props} searchParams={null} />}>
+      <AppSidebarWithSearch {...props} />
+    </React.Suspense>
+  );
+}
+
+function AppSidebarWithSearch(props: SidebarProps) {
+  const searchParams = useSearchParams();
+  return <AppSidebarFrame {...props} searchParams={searchParams} />;
+}
+
+function AppSidebarFrame({
   collapsed,
   onToggle,
   className,
   profile,
+  courses,
   courseLabels = [],
   preview = false,
   previewActivePath,
-}: SidebarProps) {
+  searchParams,
+}: SidebarProps & { searchParams: URLSearchParams | null }) {
   const pathname = usePathname();
   const activePath = previewActivePath ?? pathname;
   const tagline = profile?.tagline?.trim() || APP_TAGLINE;
+  const courseItems: SidebarCourse[] =
+    courses ??
+    courseLabels.map((name, index) => ({
+      id: `label-${index}-${name}`,
+      name,
+    }));
 
   return (
     <motion.aside
@@ -67,7 +97,7 @@ export function AppSidebar({
 
       <SidebarGroup title="Workspace" collapsed={collapsed}>
         {workspaceNav.map(({ href, label, icon: Icon }) => {
-          const active = activePath === href || activePath.startsWith(`${href}/`);
+          const active = isPathActive(activePath, href);
           return (
             <SidebarItem key={label} href={href} active={active} collapsed={collapsed}>
               <Icon className="size-4.5" />
@@ -78,29 +108,41 @@ export function AppSidebar({
       </SidebarGroup>
 
       <SidebarGroup title="Courses" collapsed={collapsed}>
-        {courseLabels.length === 0 ? (
-          <SidebarItem href="/courses" active={activePath === "/courses" || activePath.startsWith("/courses/")} collapsed={collapsed}>
+        {courseItems.length === 0 ? (
+          <SidebarItem
+            href="/courses"
+            active={activePath === "/courses"}
+            collapsed={collapsed}
+          >
             <BookOpen className="size-4.5" />
             {!collapsed && <span className="text-muted">No courses yet</span>}
           </SidebarItem>
         ) : (
-          courseLabels.map((label) => (
-            <SidebarItem
-              key={label}
-              href="/courses"
-              active={activePath === "/courses" || activePath.startsWith("/courses/")}
-              collapsed={collapsed}
-            >
-              <BookOpen className="size-4.5" />
-              {!collapsed && <span>{label}</span>}
-            </SidebarItem>
-          ))
+          courseItems.map((course) => {
+            const href = `/courses/${course.id}`;
+            const active =
+              activePath === href || activePath.startsWith(`${href}/`);
+            return (
+              <SidebarItem
+                key={course.id}
+                href={href}
+                active={active}
+                collapsed={collapsed}
+              >
+                <BookOpen className="size-4.5" />
+                {!collapsed && <span>{course.name}</span>}
+              </SidebarItem>
+            );
+          })
         )}
       </SidebarGroup>
 
       <SidebarGroup title="Tools" collapsed={collapsed}>
         {toolNav.map(({ href, label, icon: Icon }) => {
-          const active = activePath === href || activePath.startsWith(`${href}/`);
+          const active =
+            preview || !searchParams
+              ? false
+              : isToolActive(pathname, searchParams, href);
           return (
             <SidebarItem key={label} href={href} active={active} collapsed={collapsed}>
               <Icon className="size-4.5" />
@@ -171,4 +213,3 @@ function SidebarItem({
     </Link>
   );
 }
-

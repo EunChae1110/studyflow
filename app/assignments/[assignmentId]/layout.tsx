@@ -33,7 +33,7 @@ async function AssignmentShell({
       assignmentId={assignment.slug}
       assignment={assignment}
       profile={toStudentProfile(user)}
-      courseLabels={courses.map((c) => c.name)}
+      courses={courses.map((c) => ({ id: c.id, name: c.name }))}
     >
       {children}
     </AssignmentShellClient>

@@ -1,25 +1,57 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import { StudyFlowLockup } from "@/components/brand/studyflow-logo";
 import { APP_TAGLINE } from "@/lib/constants";
-import { supportNav, toolNav, workspaceNav } from "@/lib/navigation";
-import type { StudentProfile } from "@/lib/types";
+import {
+  isPathActive,
+  isToolActive,
+  supportNav,
+  toolNav,
+  workspaceNav,
+} from "@/lib/navigation";
+import type { SidebarCourse, StudentProfile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function MobileSidebarContent({
-  onNavigate,
-  profile,
-  courseLabels = [],
-}: {
+type Props = {
   onNavigate?: () => void;
   profile?: StudentProfile;
+  courses?: SidebarCourse[];
+  /** @deprecated prefer `courses` */
   courseLabels?: string[];
-}) {
+};
+
+export function MobileSidebarContent(props: Props) {
+  return (
+    <React.Suspense fallback={<MobileSidebarFrame {...props} searchParams={null} />}>
+      <MobileSidebarWithSearch {...props} />
+    </React.Suspense>
+  );
+}
+
+function MobileSidebarWithSearch(props: Props) {
+  const searchParams = useSearchParams();
+  return <MobileSidebarFrame {...props} searchParams={searchParams} />;
+}
+
+function MobileSidebarFrame({
+  onNavigate,
+  profile,
+  courses,
+  courseLabels = [],
+  searchParams,
+}: Props & { searchParams: URLSearchParams | null }) {
   const pathname = usePathname();
   const tagline = profile?.tagline?.trim() || APP_TAGLINE;
+  const courseItems: SidebarCourse[] =
+    courses ??
+    courseLabels.map((name, index) => ({
+      id: `label-${index}-${name}`,
+      name,
+    }));
 
   return (
     <div className="h-full overflow-y-auto bg-surface p-4">
@@ -31,7 +63,7 @@ export function MobileSidebarContent({
 
       <MobileGroup title="Workspace">
         {workspaceNav.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
+          const active = isPathActive(pathname, href);
           return (
             <MobileItem key={label} href={href} active={active} onNavigate={onNavigate}>
               <Icon className="size-4.5" />
@@ -42,29 +74,35 @@ export function MobileSidebarContent({
       </MobileGroup>
 
       <MobileGroup title="Courses">
-        {courseLabels.length === 0 ? (
+        {courseItems.length === 0 ? (
           <MobileItem href="/courses" active={pathname === "/courses"} onNavigate={onNavigate}>
             <BookOpen className="size-4.5" />
             <span className="text-muted">No courses yet</span>
           </MobileItem>
         ) : (
-          courseLabels.map((label) => (
-            <MobileItem
-              key={label}
-              href="/courses"
-              active={pathname === "/courses"}
-              onNavigate={onNavigate}
-            >
-              <BookOpen className="size-4.5" />
-              <span>{label}</span>
-            </MobileItem>
-          ))
+          courseItems.map((course) => {
+            const href = `/courses/${course.id}`;
+            const active = pathname === href || pathname.startsWith(`${href}/`);
+            return (
+              <MobileItem
+                key={course.id}
+                href={href}
+                active={active}
+                onNavigate={onNavigate}
+              >
+                <BookOpen className="size-4.5" />
+                <span>{course.name}</span>
+              </MobileItem>
+            );
+          })
         )}
       </MobileGroup>
 
       <MobileGroup title="Tools">
         {toolNav.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
+          const active = searchParams
+            ? isToolActive(pathname, searchParams, href)
+            : false;
           return (
             <MobileItem key={label} href={href} active={active} onNavigate={onNavigate}>
               <Icon className="size-4.5" />

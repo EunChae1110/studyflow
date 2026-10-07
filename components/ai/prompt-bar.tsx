@@ -20,6 +20,7 @@ type PromptBarProps = {
   isStreaming?: boolean;
   modelId?: string;
   onModelChange?: (modelId: string) => void;
+  seedValue?: string;
   onSend?: (value: string) => void | Promise<void>;
   onStop?: () => void;
 };
@@ -33,10 +34,11 @@ export function PromptBar({
   isStreaming = false,
   modelId,
   onModelChange,
+  seedValue = "",
   onSend,
   onStop,
 }: PromptBarProps) {
-  const [value, setValue] = React.useState("");
+  const [value, setValue] = React.useState(seedValue);
   const [internalModelId, setInternalModelId] = React.useState(DEFAULT_MODEL_ID);
   const selectedModelId = modelId ?? internalModelId;
 

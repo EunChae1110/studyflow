@@ -6,7 +6,7 @@ import { AssignmentAiPanel } from "@/components/assignment/assignment-ai-panel";
 import { AssignmentHeader } from "@/components/assignment/assignment-header";
 import { AssignmentTabs } from "@/components/assignment/assignment-tabs";
 import { AppShell } from "@/components/layout/app-shell";
-import type { AssignmentDetail, StudentProfile } from "@/lib/types";
+import type { AssignmentDetail, SidebarCourse, StudentProfile } from "@/lib/types";
 
 const labelByView: Record<string, string> = {
   brief: "Brief",
@@ -22,13 +22,13 @@ export function AssignmentShellClient({
   assignmentId,
   assignment,
   profile,
-  courseLabels,
+  courses,
   children,
 }: {
   assignmentId: string;
   assignment: AssignmentDetail;
   profile?: StudentProfile;
-  courseLabels?: string[];
+  courses?: SidebarCourse[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -57,7 +57,7 @@ export function AssignmentShellClient({
     <AppShell
       crumbs={crumbs}
       profile={profile}
-      courseLabels={courseLabels}
+      courses={courses}
       rightPanel={
         <AssignmentAiPanel
           view={tab as "brief" | "notes" | "research" | "outline" | "draft" | "references"}

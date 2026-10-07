@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShieldCheck } from "lucide-react";
 
-async function LibraryBody() {
+async function LibraryBody({ tab }: { tab?: string }) {
   const user = await requireUser();
   const [sources, assignments] = await Promise.all([
     getResearchSources({ userId: user.id, limit: 50 }),
@@ -15,19 +15,25 @@ async function LibraryBody() {
   ]);
 
   const defaultSlug = assignments[0]?.slug ?? null;
+  const savedOnly = tab === "saved";
 
   return (
     <div className="space-y-4">
-      <LiteratureSearch
-        assignmentSlug={defaultSlug}
-        initialSources={sources}
-        libraryMode
-      />
+      {!savedOnly ? (
+        <>
+          <LiteratureSearch
+            assignmentSlug={defaultSlug}
+            initialSources={sources}
+            libraryMode
+          />
+          <SourceKindLegend />
+        </>
+      ) : null}
 
-      <SourceKindLegend />
-
-      <div>
-        <h2 className="mb-2 text-sm font-semibold">Saved sources</h2>
+      <div id="saved">
+        <h2 className="mb-2 text-sm font-semibold">
+          {savedOnly ? "Saved references" : "Saved sources"}
+        </h2>
         {sources.length === 0 ? (
           <Card className="border-border bg-surface">
             <CardContent className="p-6 text-sm text-muted">
@@ -80,15 +86,24 @@ async function LibraryBody() {
   );
 }
 
-export default function ResearchLibraryPage() {
+export default async function ResearchLibraryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
+  const savedOnly = tab === "saved";
+
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Research Library</h1>
+        <h1 className="text-2xl font-semibold">
+          {savedOnly ? "Saved References" : "Research Library"}
+        </h1>
         <p className="text-sm text-muted">
-          Search OpenAlex for papers, save sources you verify, and keep
-          transparent provenance tags. StudyFlow helps you find evidence — not
-          write essays.
+          {savedOnly
+            ? "Sources you have saved and verified across assignments."
+            : "Search OpenAlex for papers, save sources you verify, and keep transparent provenance tags. StudyFlow helps you find evidence — not write essays."}
         </p>
       </div>
 
@@ -97,7 +112,7 @@ export default function ResearchLibraryPage() {
           <div className="h-48 animate-pulse rounded-xl bg-surface-muted" />
         }
       >
-        <LibraryBody />
+        <LibraryBody tab={tab} />
       </Suspense>
     </div>
   );

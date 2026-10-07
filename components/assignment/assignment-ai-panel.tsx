@@ -60,9 +60,11 @@ const configByView: Record<
 export function AssignmentAiPanel({
   view,
   assignmentSlug,
+  onClose,
 }: {
   view: View;
   assignmentSlug?: string;
+  onClose?: () => void;
 }) {
   const cfg = configByView[view] ?? configByView.brief;
 
@@ -76,6 +78,7 @@ export function AssignmentAiPanel({
       showAttach={cfg.showAttach}
       live
       assignmentId={assignmentSlug}
+      onClose={onClose}
       seedQuestions={
         view === "notes"
           ? [

@@ -14,6 +14,8 @@ type TopbarProps = {
   crumbs: Crumb[];
   onOpenSidebar: () => void;
   onOpenAi?: () => void;
+  /** When true, desktop AI panel is visible — hide the reopen button on lg+. */
+  aiOpen?: boolean;
   className?: string;
   profile?: StudentProfile;
   preview?: boolean;
@@ -23,6 +25,7 @@ export function Topbar({
   crumbs,
   onOpenSidebar,
   onOpenAi,
+  aiOpen = false,
   className,
   profile,
   preview = false,
@@ -69,7 +72,7 @@ export function Topbar({
           <Button
             variant="ghost"
             size="icon-sm"
-            className="text-muted lg:hidden"
+            className={cn("text-muted", aiOpen && "lg:hidden")}
             aria-label="Open AI assistant"
             onClick={onOpenAi}
           >

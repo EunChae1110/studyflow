@@ -11,7 +11,7 @@ async function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <DashboardShellClient
       profile={toStudentProfile(user)}
-      courseLabels={courses.map((c) => c.name)}
+      courses={courses.map((c) => ({ id: c.id, name: c.name }))}
     >
       {children}
     </DashboardShellClient>

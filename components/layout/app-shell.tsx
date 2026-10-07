@@ -7,7 +7,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { MobileSidebarContent } from "@/components/layout/mobile-sidebar-content";
 import { Crumb, Topbar } from "@/components/layout/topbar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import type { StudentProfile } from "@/lib/types";
+import type { SidebarCourse, StudentProfile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type AppShellProps = {
@@ -16,6 +16,8 @@ type AppShellProps = {
   rightPanel?: React.ReactNode;
   mainClassName?: string;
   profile?: StudentProfile;
+  courses?: SidebarCourse[];
+  /** @deprecated prefer `courses` */
   courseLabels?: string[];
   /** Read-only marketing embed: no mobile chrome, constrained height, forced nav active. */
   preview?: boolean;
@@ -23,20 +25,57 @@ type AppShellProps = {
   className?: string;
 };
 
+function withCloseProp(
+  panel: React.ReactNode,
+  onClose: () => void,
+): React.ReactNode {
+  if (React.isValidElement(panel)) {
+    return React.cloneElement(
+      panel as React.ReactElement<{ onClose?: () => void }>,
+      { onClose },
+    );
+  }
+  return panel;
+}
+
 export function AppShell({
   crumbs,
   children,
   rightPanel,
   mainClassName,
   profile,
+  courses,
   courseLabels,
   preview = false,
   previewActivePath,
   className,
 }: AppShellProps) {
+  const resolvedCourses: SidebarCourse[] =
+    courses ??
+    (courseLabels ?? []).map((name, index) => ({
+      id: `label-${index}-${name}`,
+      name,
+    }));
+
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const [mobileAiOpen, setMobileAiOpen] = React.useState(false);
+  const [desktopAiOpen, setDesktopAiOpen] = React.useState(Boolean(rightPanel));
+
+  React.useEffect(() => {
+    if (rightPanel) setDesktopAiOpen(true);
+  }, [rightPanel]);
+
+  const openAi = React.useCallback(() => {
+    setDesktopAiOpen(true);
+    setMobileAiOpen(true);
+  }, []);
+
+  const closeDesktopAi = React.useCallback(() => setDesktopAiOpen(false), []);
+  const closeMobileAi = React.useCallback(() => setMobileAiOpen(false), []);
+
+  const showDesktopAi = Boolean(rightPanel) && desktopAiOpen;
+  const canOpenAi = Boolean(rightPanel);
 
   return (
     <div
@@ -51,7 +90,7 @@ export function AppShell({
           collapsed={collapsed}
           onToggle={() => setCollapsed((v) => !v)}
           profile={profile}
-          courseLabels={courseLabels}
+          courses={resolvedCourses}
           preview={preview}
           previewActivePath={previewActivePath}
           className={preview ? "lg:flex" : undefined}
@@ -65,7 +104,8 @@ export function AppShell({
           <Topbar
             crumbs={crumbs}
             onOpenSidebar={() => setMobileNavOpen(true)}
-            onOpenAi={rightPanel ? () => setMobileAiOpen(true) : undefined}
+            onOpenAi={canOpenAi ? openAi : undefined}
+            aiOpen={showDesktopAi}
             profile={profile}
             preview={preview}
           />
@@ -80,7 +120,7 @@ export function AppShell({
               {children}
             </main>
 
-            {rightPanel ? (
+            {showDesktopAi ? (
               <aside className="study-scroll hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-surface lg:block">
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -91,7 +131,7 @@ export function AppShell({
                     transition={{ duration: 0.18 }}
                     className="h-full"
                   >
-                    {rightPanel}
+                    {withCloseProp(rightPanel, closeDesktopAi)}
                   </motion.div>
                 </AnimatePresence>
               </aside>
@@ -110,17 +150,19 @@ export function AppShell({
               <MobileSidebarContent
                 onNavigate={() => setMobileNavOpen(false)}
                 profile={profile}
-                courseLabels={courseLabels}
+                courses={resolvedCourses}
               />
             </SheetContent>
           </Sheet>
 
-          <Sheet open={mobileAiOpen} onOpenChange={setMobileAiOpen}>
-            <SheetContent side="bottom" className="h-[76vh] rounded-t-2xl p-0 lg:hidden">
-              <SheetTitle className="sr-only">AI Assistant</SheetTitle>
-              {rightPanel}
-            </SheetContent>
-          </Sheet>
+          {rightPanel ? (
+            <Sheet open={mobileAiOpen} onOpenChange={setMobileAiOpen}>
+              <SheetContent side="bottom" className="h-[76vh] rounded-t-2xl p-0 lg:hidden">
+                <SheetTitle className="sr-only">AI Assistant</SheetTitle>
+                {withCloseProp(rightPanel, closeMobileAi)}
+              </SheetContent>
+            </Sheet>
+          ) : null}
         </>
       ) : null}
     </div>

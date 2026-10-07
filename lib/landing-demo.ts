@@ -26,6 +26,12 @@ export const landingCourseLabels = [
   "Economics",
 ];
 
+export const landingCourses = [
+  { id: "landing-db", name: "Database Systems" },
+  { id: "landing-eng", name: "Academic English" },
+  { id: "landing-econ", name: "Economics" },
+];
+
 export const landingAssignment: AssignmentDetail = {
   id: "landing-demo-assignment",
   slug: "database-normalisation-report",

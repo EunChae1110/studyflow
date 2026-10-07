@@ -1,7 +1,11 @@
+import Link from "next/link";
 import { BookOpen, FileCheck2, GraduationCap } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getCoursesForUser } from "@/lib/db/queries";
+import { DeleteButton } from "@/components/workspace/delete-button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export default async function CoursesPage() {
   const user = await requireUser();
@@ -25,11 +29,20 @@ export default async function CoursesPage() {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {courses.map((course) => (
             <Card key={course.id} className="border-border bg-surface">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-start justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <BookOpen className="size-4 text-primary" />
-                  {course.name}
+                  <BookOpen className="size-4 shrink-0 text-primary" />
+                  <Link href={`/courses/${course.id}`} className="hover:underline">
+                    {course.name}
+                  </Link>
                 </CardTitle>
+                <DeleteButton
+                  kind="course"
+                  id={course.id}
+                  label={course.name}
+                  size="xs"
+                  variant="ghost"
+                />
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <p className="text-muted">
@@ -43,6 +56,12 @@ export default async function CoursesPage() {
                   <GraduationCap className="size-3.5" />
                   Learning support mode enabled
                 </p>
+                <Link
+                  href={`/courses/${course.id}`}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1")}
+                >
+                  Open course
+                </Link>
               </CardContent>
             </Card>
           ))}

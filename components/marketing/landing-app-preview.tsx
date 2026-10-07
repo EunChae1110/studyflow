@@ -7,7 +7,7 @@ import { BriefPanels } from "@/components/assignment/brief-panels";
 import { AppShell } from "@/components/layout/app-shell";
 import {
   landingAssignment,
-  landingCourseLabels,
+  landingCourses,
   landingProfile,
 } from "@/lib/landing-demo";
 
@@ -33,7 +33,7 @@ export function LandingAppPreview() {
           preview
           previewActivePath="/assignments"
           profile={landingProfile}
-          courseLabels={landingCourseLabels}
+          courses={landingCourses}
           crumbs={[
             { label: "Assignments" },
             { label: landingAssignment.title },

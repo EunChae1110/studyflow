@@ -1,4 +1,4 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { EMPTY_STUDENT_PROFILE } from "@/lib/constants";
 import { isUserId } from "@/lib/auth/ids";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
@@ -130,7 +130,7 @@ export async function getDashboardSummary(userId: string): Promise<DashboardSumm
       studentName: user?.name ?? EMPTY_STUDENT_PROFILE.name,
       assignmentCount: rows.length,
       assignments: rows.map((row) => ({
-        id: row.slug,
+        id: row.id,
         slug: row.slug,
         title: row.title,
         course: row.courseName ?? "Course",
@@ -514,6 +514,61 @@ export async function getCoursesForUser(userId: string) {
     return [];
   }
 }
+
+
+export async function getCourseById(courseId: string, userId: string) {
+  if (!isUserId(userId)) return null;
+  try {
+    const db = requireDb();
+    const [row] = await db
+      .select()
+      .from(courses)
+      .where(and(eq(courses.id, courseId), eq(courses.userId, userId)))
+      .limit(1);
+    return row ?? null;
+  } catch (error) {
+    console.warn("[studyflow] getCourseById failed:", error);
+    return null;
+  }
+}
+
+export async function listAssignmentsForCourse(
+  courseId: string,
+  userId: string,
+): Promise<AssignmentListItem[]> {
+  if (!isUserId(userId)) return [];
+  try {
+    const db = requireDb();
+    const rows = await db
+      .select({
+        id: assignments.id,
+        slug: assignments.slug,
+        title: assignments.title,
+        courseName: assignments.courseName,
+        dueAt: assignments.dueAt,
+        dueLabel: assignments.dueLabel,
+        progress: assignments.progress,
+        nextAction: assignments.nextAction,
+      })
+      .from(assignments)
+      .where(and(eq(assignments.courseId, courseId), eq(assignments.userId, userId)))
+      .orderBy(asc(assignments.dueAt));
+
+    return rows.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      course: row.courseName ?? "Course",
+      due: formatDue(row.dueAt, row.dueLabel),
+      progress: row.progress,
+      nextAction: row.nextAction,
+    }));
+  } catch (error) {
+    console.warn("[studyflow] listAssignmentsForCourse failed:", error);
+    return [];
+  }
+}
+
 
 export async function getDashboardStats(userId: string): Promise<{
   stats: DashboardStat[];

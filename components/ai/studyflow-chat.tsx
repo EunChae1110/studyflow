@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { FileText } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { AssistantAnswer, UserBubble } from "@/components/ai/chat";
 import { PromptBar } from "@/components/ai/prompt-bar";
 import { ThinkingBlock } from "@/components/ai/thinking-block";
@@ -20,13 +20,25 @@ type StudyflowChatProps = {
   assignmentId?: string;
 };
 
-function messageText(message: {
-  parts?: Array<{ type: string; text?: string }>;
-}): string {
+type MessagePart = { type: string; text?: string };
+
+function messageText(message: { parts?: MessagePart[] }): string {
   return (message.parts ?? [])
     .filter((part) => part.type === "text" && typeof part.text === "string")
     .map((part) => part.text as string)
     .join("\n");
+}
+
+function messageReasoning(message: { parts?: MessagePart[] }): string {
+  return (message.parts ?? [])
+    .filter(
+      (part) =>
+        (part.type === "reasoning" || part.type === "thinking") &&
+        typeof part.text === "string",
+    )
+    .map((part) => part.text as string)
+    .join("\n")
+    .trim();
 }
 
 export function StudyflowChat({
@@ -40,6 +52,8 @@ export function StudyflowChat({
 }: StudyflowChatProps) {
   const [conversationId] = React.useState(() => crypto.randomUUID());
   const [modelId, setModelId] = React.useState(DEFAULT_MODEL_ID);
+  const [draft, setDraft] = React.useState("");
+  const [draftKey, setDraftKey] = React.useState(0);
 
   const transport = React.useMemo(
     () =>
@@ -61,6 +75,9 @@ export function StudyflowChat({
   });
 
   const isStreaming = status === "submitted" || status === "streaming";
+  const lastMessage = messages[messages.length - 1];
+  const waitingForFirstToken =
+    isStreaming && (!lastMessage || lastMessage.role === "user");
 
   const handleSend = React.useCallback(
     async (text: string) => {
@@ -68,6 +85,12 @@ export function StudyflowChat({
     },
     [sendMessage],
   );
+
+  const handleReply = React.useCallback((text: string) => {
+    const clipped = text.length > 120 ? `${text.slice(0, 117)}…` : text;
+    setDraft(`Regarding: “${clipped}”\n\n`);
+    setDraftKey((key) => key + 1);
+  }, []);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -98,31 +121,58 @@ export function StudyflowChat({
 
         {messages.map((message) => {
           const text = messageText(message);
+          const reasoning = messageReasoning(message);
+          const isLast = message.id === lastMessage?.id;
+          const streamingThis = isStreaming && isLast && message.role === "assistant";
+
           if (message.role === "user") {
-            return <UserBubble key={message.id}>{text}</UserBubble>;
+            return (
+              <UserBubble key={message.id} text={text} onReply={handleReply}>
+                {text}
+              </UserBubble>
+            );
           }
+
           if (message.role === "assistant") {
             return (
               <div key={message.id} className="space-y-2">
-                {isStreaming && message.id === messages[messages.length - 1]?.id ? (
-                  <ThinkingBlock state="active" title="Thinking..." />
+                {reasoning ? (
+                  <ThinkingBlock
+                    state={streamingThis ? "active" : "done"}
+                    title={streamingThis ? "Thinking..." : "Thought process"}
+                    defaultOpen={streamingThis}
+                    steps={reasoning
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map((line) => ({
+                        text: line,
+                        status: streamingThis ? ("active" as const) : ("done" as const),
+                      }))}
+                  />
                 ) : null}
-                <AssistantAnswer>{text || "…"}</AssistantAnswer>
+                {text ? (
+                  <AssistantAnswer
+                    markdown={text}
+                    onReply={streamingThis ? undefined : handleReply}
+                  />
+                ) : streamingThis ? (
+                  <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-muted">
+                    <LoaderCircle className="size-3.5 animate-spin" />
+                    Generating response…
+                  </div>
+                ) : null}
               </div>
             );
           }
+
           return null;
         })}
 
-        {isStreaming && messages[messages.length - 1]?.role === "user" ? (
-          <div className="space-y-2">
-            <ThinkingBlock state="active" title="Thinking..." />
-            <AssistantAnswer dimmed>
-              <span className="inline-flex items-center gap-2 text-xs text-muted">
-                <FileText className="size-3.5" />
-                Preparing a grounded answer...
-              </span>
-            </AssistantAnswer>
+        {waitingForFirstToken ? (
+          <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-muted">
+            <LoaderCircle className="size-3.5 animate-spin" />
+            Generating response…
           </div>
         ) : null}
 
@@ -135,6 +185,7 @@ export function StudyflowChat({
 
       <div className="border-t border-border bg-background p-3">
         <PromptBar
+          key={draftKey}
           mode={mode}
           placeholder={placeholder}
           hint={hint}
@@ -143,6 +194,7 @@ export function StudyflowChat({
           isStreaming={isStreaming}
           modelId={modelId}
           onModelChange={setModelId}
+          seedValue={draft}
           onSend={handleSend}
           onStop={() => stop()}
         />

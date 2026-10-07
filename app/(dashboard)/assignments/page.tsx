@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { DeleteButton } from "@/components/workspace/delete-button";
 import { cn } from "@/lib/utils";
 
 function AssignmentsListFallback() {
@@ -65,6 +66,12 @@ async function AssignmentsList() {
                 <ArrowRight className="size-4" />
               </Link>
               <Button variant="outline">Review checklist</Button>
+              <DeleteButton
+                kind="assignment"
+                id={assignment.slug}
+                label={assignment.title}
+                variant="ghost"
+              />
             </div>
           </CardContent>
         </Card>

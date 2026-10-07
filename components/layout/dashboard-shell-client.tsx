@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
-import type { StudentProfile } from "@/lib/types";
+import type { SidebarCourse, StudentProfile } from "@/lib/types";
 
 const crumbsByPath: Record<string, { label: string }[]> = {
   "/dashboard": [{ label: "Overview" }],
@@ -15,17 +15,21 @@ const crumbsByPath: Record<string, { label: string }[]> = {
 export function DashboardShellClient({
   children,
   profile,
-  courseLabels,
+  courses,
 }: {
   children: React.ReactNode;
   profile?: StudentProfile;
-  courseLabels?: string[];
+  courses?: SidebarCourse[];
 }) {
   const pathname = usePathname();
-  const crumbs = crumbsByPath[pathname] ?? [{ label: "Workspace" }];
+  const crumbs =
+    crumbsByPath[pathname] ??
+    (pathname.startsWith("/courses/")
+      ? [{ label: "Courses" }, { label: "Course" }]
+      : [{ label: "Workspace" }]);
 
   return (
-    <AppShell crumbs={crumbs} profile={profile} courseLabels={courseLabels}>
+    <AppShell crumbs={crumbs} profile={profile} courses={courses}>
       {children}
     </AppShell>
   );

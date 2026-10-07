@@ -20,6 +20,7 @@ type AssistantPanelProps = {
   seedQuestions?: string[];
   children?: React.ReactNode;
   className?: string;
+  onClose?: () => void;
 };
 
 const modes: AssistantMode[] = ["Notes-only", "Research", "Outline"];
@@ -36,6 +37,7 @@ export function AssistantPanel({
   seedQuestions,
   children,
   className,
+  onClose,
 }: AssistantPanelProps) {
   return (
     <section className={cn("flex h-full min-h-[500px] flex-col bg-surface", className)}>
@@ -44,9 +46,18 @@ export function AssistantPanel({
           <Sparkles className="size-4 text-primary" />
           <h3 className="text-sm font-semibold">{title}</h3>
         </div>
-        <Button variant="ghost" size="icon-xs" className="text-muted">
-          <X className="size-3.5" />
-        </Button>
+        {onClose ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted"
+            aria-label="Close AI assistant"
+            onClick={onClose}
+          >
+            <X className="size-3.5" />
+          </Button>
+        ) : null}
       </header>
       <div className="grid grid-cols-3 gap-1 border-b border-border p-2">
         {modes.map((mode) => (

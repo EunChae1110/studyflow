@@ -19,6 +19,11 @@ export type StudentProfile = {
   tagline: string | null;
 };
 
+export type SidebarCourse = {
+  id: string;
+  name: string;
+};
+
 export type RequirementItem = {
   title: string;
   note: string;
