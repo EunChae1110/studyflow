@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { GuidelineUploadCard } from "@/components/assignment/guideline-upload";
 
 /** Shared brief workspace body — used by assignment Brief page and landing preview. */
 export function BriefPanels({
@@ -36,6 +37,14 @@ export function BriefPanels({
       <WorkflowStepper progress={assignment.progress} />
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
         <div className="space-y-4">
+          {showAskAi ? (
+            <GuidelineUploadCard
+              assignmentId={assignment.id}
+              assignmentSlug={assignment.slug}
+              guidelines={assignment.guidelines ?? []}
+            />
+          ) : null}
+
           <Card className="border-border bg-surface">
             <CardHeader>
               <CardTitle className="text-base">Assignment question</CardTitle>

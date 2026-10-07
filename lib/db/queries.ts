@@ -7,6 +7,7 @@ import {
   aiMessages,
   assignments,
   claims,
+  assignmentGuidelines,
   courseMaterials,
   courses,
   evidence,
@@ -169,6 +170,12 @@ export async function getAssignmentBySlug(
   if (!row) return null;
   if (userId && row.userId !== userId) return null;
 
+  const guidelineRows = await db
+    .select()
+    .from(assignmentGuidelines)
+    .where(eq(assignmentGuidelines.assignmentId, row.id))
+    .orderBy(asc(assignmentGuidelines.createdAt));
+
   return {
     id: row.id,
     slug: row.slug,
@@ -185,6 +192,17 @@ export async function getAssignmentBySlug(
     requirements: Array.isArray(row.requirements) ? row.requirements : [],
     rubric: Array.isArray(row.rubric) ? row.rubric : [],
     status: row.status,
+    guidelines: guidelineRows.map((g) => ({
+      id: g.id,
+      originalName: g.originalName,
+      mimeType: g.mimeType,
+      sizeBytes: g.sizeBytes,
+      kind: g.kind,
+      status: g.status,
+      charCount: g.extractedText?.length ?? null,
+      createdAt: g.createdAt.toISOString(),
+      hasExtractedText: Boolean(g.extractedText?.trim()),
+    })),
   };
 }
 

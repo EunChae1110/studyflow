@@ -6,6 +6,11 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
 import { assignments, courses } from "@/lib/db/schema";
+import {
+  removeAssignmentUploadDir,
+  saveGuidelineFile,
+  deleteGuideline,
+} from "@/lib/guidelines/store";
 
 export type WorkspaceActionState = {
   ok: boolean;
@@ -181,6 +186,20 @@ export async function createAssignmentAction(
     return { ok: false, error: "Could not create assignment." };
   }
 
+  const guidelineFile = formData.get("guideline");
+  if (guidelineFile instanceof File && guidelineFile.size > 0) {
+    const saved = await saveGuidelineFile({
+      userId: user.id,
+      assignmentId: created.id,
+      file: guidelineFile,
+      kind: "guideline",
+    });
+    if (!saved.ok) {
+      // Assignment exists; surface extract/upload error but still land on brief.
+      console.warn("[studyflow] guideline upload on create:", saved.error);
+    }
+  }
+
   revalidatePath("/assignments");
   revalidatePath("/dashboard");
   revalidatePath("/calendar");
@@ -242,6 +261,8 @@ export async function deleteAssignmentAction(
   await db
     .delete(assignments)
     .where(and(eq(assignments.id, existing.id), eq(assignments.userId, user.id)));
+
+  await removeAssignmentUploadDir(existing.id);
 
   revalidatePath("/assignments");
   revalidatePath("/dashboard");
@@ -488,5 +509,70 @@ export async function verifyEvidenceAction(
 
   revalidatePath(`/assignments/${row.slug}/claim-evidence`);
   revalidatePath(`/assignments/${row.slug}/outline`);
+  return { ok: true };
+}
+
+export async function uploadGuidelineAction(
+  _prev: WorkspaceActionState,
+  formData: FormData,
+): Promise<WorkspaceActionState> {
+  if (!isDatabaseConfigured()) return dbUnavailable();
+
+  const user = await requireUser();
+  const assignmentId = String(formData.get("assignmentId") ?? "").trim();
+  const assignmentSlug = String(formData.get("assignmentSlug") ?? "").trim();
+  const kindRaw = String(formData.get("kind") ?? "guideline").trim();
+  const kind =
+    kindRaw === "rubric" || kindRaw === "brief" ? kindRaw : "guideline";
+  const file = formData.get("guideline");
+
+  if (!assignmentId) {
+    return { ok: false, error: "Missing assignment." };
+  }
+  if (!(file instanceof File) || file.size <= 0) {
+    return {
+      ok: false,
+      error: "Choose a PDF, DOCX, TXT, or Markdown guideline file.",
+      fieldErrors: { guideline: ["File is required."] },
+    };
+  }
+
+  const saved = await saveGuidelineFile({
+    userId: user.id,
+    assignmentId,
+    file,
+    kind,
+  });
+
+  if (!saved.ok) {
+    return { ok: false, error: saved.error, fieldErrors: { guideline: [saved.error] } };
+  }
+
+  if (assignmentSlug) {
+    revalidatePath(`/assignments/${assignmentSlug}`);
+    revalidatePath(`/assignments/${assignmentSlug}/brief`);
+  }
+  revalidatePath("/assignments");
+  return { ok: true };
+}
+
+export async function deleteGuidelineAction(
+  guidelineId: string,
+  assignmentSlug?: string,
+): Promise<WorkspaceActionState> {
+  if (!isDatabaseConfigured()) return dbUnavailable();
+  const user = await requireUser();
+
+  const result = await deleteGuideline({
+    guidelineId,
+    userId: user.id,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const slug = assignmentSlug ?? result.assignmentSlug;
+  if (slug) {
+    revalidatePath(`/assignments/${slug}`);
+    revalidatePath(`/assignments/${slug}/brief`);
+  }
   return { ok: true };
 }

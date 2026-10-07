@@ -60,7 +60,7 @@ export function CreateAssignmentForm({
               Link to a course optionally. AI working memory is scoped to this assignment.
             </SheetDescription>
           </SheetHeader>
-          <form action={formAction} className="flex flex-col gap-4 p-4 pt-0">
+          <form action={formAction} encType="multipart/form-data" className="flex flex-col gap-4 p-4 pt-0">
             {state.error ? (
               <div
                 role="alert"
@@ -161,6 +161,28 @@ export function CreateAssignmentForm({
                 className="h-10"
                 aria-invalid={Boolean(state.fieldErrors?.dueAt)}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="asg-guideline" className="text-sm font-medium">
+                Guideline / brief / rubric{" "}
+                <span className="text-muted">(optional)</span>
+              </label>
+              <Input
+                id="asg-guideline"
+                name="guideline"
+                type="file"
+                accept=".pdf,.docx,.txt,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+                className="h-10 cursor-pointer py-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-2.5 file:py-1 file:text-xs file:font-medium"
+              />
+              <p className="text-xs text-muted">
+                PDF, DOCX, TXT, or Markdown · max 10 MB. AI will scan extracted text.
+              </p>
+              {state.fieldErrors?.guideline?.[0] ? (
+                <p className="text-xs text-destructive">
+                  {state.fieldErrors.guideline[0]}
+                </p>
+              ) : null}
             </div>
 
             <Button type="submit" className="h-10 w-full" disabled={pending}>

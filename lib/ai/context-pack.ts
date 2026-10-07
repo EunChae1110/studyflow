@@ -9,6 +9,7 @@ import {
   outlines,
   researchSources,
 } from "@/lib/db/schema";
+import { getGuidelineTextsForAssignment } from "@/lib/guidelines/store";
 
 /**
  * Build hybrid memory context for /api/chat:
@@ -141,6 +142,22 @@ export async function buildHybridContextPack(params: {
     );
   }
   if (assignment.nextAction) sections.push(`Next action: ${assignment.nextAction}`);
+
+  const guidelineDocs = await getGuidelineTextsForAssignment(
+    assignment.id,
+    params.userId,
+  );
+  if (guidelineDocs.length) {
+    const chunks = guidelineDocs.map((g, i) => {
+      const body = g.text.slice(0, 12_000);
+      return `### Guideline ${i + 1}: ${g.originalName} (${g.kind})\n${body}`;
+    });
+    sections.push(
+      "## Uploaded assignment guidelines (authoritative brief/rubric text)\n" +
+        "Use these to understand requirements, marking criteria, and constraints. Prefer them over guesses.\n\n" +
+        chunks.join("\n\n"),
+    );
+  }
 
   const reqs = Array.isArray(assignment.requirements)
     ? assignment.requirements

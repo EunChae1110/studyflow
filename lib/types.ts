@@ -83,6 +83,18 @@ export type CourseMaterialItem = {
   status: string;
 };
 
+export type GuidelineListItem = {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: string;
+  status: string;
+  charCount: number | null;
+  createdAt: string;
+  hasExtractedText: boolean;
+};
+
 export type ResearchQuestionItem = {
   id: string;
   title: string;
@@ -105,6 +117,7 @@ export type AssignmentDetail = {
   requirements: RequirementItem[];
   rubric: RubricItem[];
   status: string;
+  guidelines: GuidelineListItem[];
 };
 
 export type DashboardStat = {

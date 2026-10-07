@@ -63,6 +63,7 @@ export const landingAssignment: AssignmentDetail = {
     { criterion: "Referencing", weight: "15%" },
   ],
   status: "in_progress",
+  guidelines: [],
 };
 
 export const landingContinueAssignment: AssignmentListItem = {

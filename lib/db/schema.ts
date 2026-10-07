@@ -124,6 +124,26 @@ export const courseMaterials = pgTable("course_materials", {
   ...timestamps,
 });
 
+
+export const assignmentGuidelines = pgTable("assignment_guidelines", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  assignmentId: uuid("assignment_id")
+    .notNull()
+    .references(() => assignments.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  originalName: varchar("original_name", { length: 255 }).notNull(),
+  storagePath: text("storage_path").notNull(),
+  mimeType: varchar("mime_type", { length: 128 }).notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  kind: varchar("kind", { length: 64 }).default("guideline").notNull(),
+  extractedText: text("extracted_text"),
+  extractError: text("extract_error"),
+  status: varchar("status", { length: 64 }).default("ready").notNull(),
+  ...timestamps,
+});
+
 export const researchQuestions = pgTable("research_questions", {
   id: uuid("id").defaultRandom().primaryKey(),
   assignmentId: uuid("assignment_id")
@@ -260,6 +280,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   researchSources: many(researchSources),
   aiConversations: many(aiConversations),
   memories: many(memories),
+  assignmentGuidelines: many(assignmentGuidelines),
 }));
 
 export const coursesRelations = relations(courses, ({ one, many }) => ({
@@ -273,6 +294,7 @@ export const assignmentsRelations = relations(assignments, ({ one, many }) => ({
   course: one(courses, { fields: [assignments.courseId], references: [courses.id] }),
   notes: many(notes),
   courseMaterials: many(courseMaterials),
+  guidelines: many(assignmentGuidelines),
   researchQuestions: many(researchQuestions),
   researchSources: many(researchSources),
   references: many(referencesTable),
@@ -280,6 +302,18 @@ export const assignmentsRelations = relations(assignments, ({ one, many }) => ({
   outlines: many(outlines),
   aiConversations: many(aiConversations),
   memories: many(memories),
+}));
+
+
+export const assignmentGuidelinesRelations = relations(assignmentGuidelines, ({ one }) => ({
+  assignment: one(assignments, {
+    fields: [assignmentGuidelines.assignmentId],
+    references: [assignments.id],
+  }),
+  user: one(users, {
+    fields: [assignmentGuidelines.userId],
+    references: [users.id],
+  }),
 }));
 
 export const claimsRelations = relations(claims, ({ one, many }) => ({
