@@ -19,6 +19,7 @@ type AssistantPanelProps = {
   assignmentId?: string;
   seedQuestions?: string[];
   children?: React.ReactNode;
+  className?: string;
 };
 
 const modes: AssistantMode[] = ["Notes-only", "Research", "Outline"];
@@ -34,9 +35,10 @@ export function AssistantPanel({
   assignmentId,
   seedQuestions,
   children,
+  className,
 }: AssistantPanelProps) {
   return (
-    <section className="flex h-full min-h-[500px] flex-col bg-surface">
+    <section className={cn("flex h-full min-h-[500px] flex-col bg-surface", className)}>
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />

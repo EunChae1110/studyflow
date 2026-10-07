@@ -17,6 +17,8 @@ type SidebarProps = {
   className?: string;
   profile?: StudentProfile;
   courseLabels?: string[];
+  preview?: boolean;
+  previewActivePath?: string;
 };
 
 export function AppSidebar({
@@ -25,8 +27,11 @@ export function AppSidebar({
   className,
   profile,
   courseLabels = [],
+  preview = false,
+  previewActivePath,
 }: SidebarProps) {
   const pathname = usePathname();
+  const activePath = previewActivePath ?? pathname;
   const tagline = profile?.tagline?.trim() || APP_TAGLINE;
 
   return (
@@ -34,7 +39,8 @@ export function AppSidebar({
       animate={{ width: collapsed ? 78 : 240 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
       className={cn(
-        "hidden border-r border-border bg-surface lg:flex lg:flex-col",
+        "border-r border-border bg-surface",
+        preview ? "flex flex-col" : "hidden lg:flex lg:flex-col",
         className,
       )}
     >
@@ -61,7 +67,7 @@ export function AppSidebar({
 
       <SidebarGroup title="Workspace" collapsed={collapsed}>
         {workspaceNav.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
+          const active = activePath === href || activePath.startsWith(`${href}/`);
           return (
             <SidebarItem key={label} href={href} active={active} collapsed={collapsed}>
               <Icon className="size-4.5" />
@@ -73,7 +79,7 @@ export function AppSidebar({
 
       <SidebarGroup title="Courses" collapsed={collapsed}>
         {courseLabels.length === 0 ? (
-          <SidebarItem href="/courses" active={pathname === "/courses"} collapsed={collapsed}>
+          <SidebarItem href="/courses" active={activePath === "/courses" || activePath.startsWith("/courses/")} collapsed={collapsed}>
             <BookOpen className="size-4.5" />
             {!collapsed && <span className="text-muted">No courses yet</span>}
           </SidebarItem>
@@ -82,7 +88,7 @@ export function AppSidebar({
             <SidebarItem
               key={label}
               href="/courses"
-              active={pathname === "/courses"}
+              active={activePath === "/courses" || activePath.startsWith("/courses/")}
               collapsed={collapsed}
             >
               <BookOpen className="size-4.5" />
@@ -94,7 +100,7 @@ export function AppSidebar({
 
       <SidebarGroup title="Tools" collapsed={collapsed}>
         {toolNav.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
+          const active = activePath === href || activePath.startsWith(`${href}/`);
           return (
             <SidebarItem key={label} href={href} active={active} collapsed={collapsed}>
               <Icon className="size-4.5" />

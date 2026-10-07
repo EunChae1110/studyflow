@@ -16,6 +16,7 @@ type TopbarProps = {
   onOpenAi?: () => void;
   className?: string;
   profile?: StudentProfile;
+  preview?: boolean;
 };
 
 export function Topbar({
@@ -24,6 +25,7 @@ export function Topbar({
   onOpenAi,
   className,
   profile,
+  preview = false,
 }: TopbarProps) {
   const initials = profile?.initials?.trim() || EMPTY_STUDENT_PROFILE.initials;
 
@@ -34,15 +36,17 @@ export function Topbar({
         className,
       )}
     >
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={onOpenSidebar}
-        className="text-muted lg:hidden"
-        aria-label="Open navigation"
-      >
-        <Menu className="size-4" />
-      </Button>
+      {!preview ? (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onOpenSidebar}
+          className="text-muted lg:hidden"
+          aria-label="Open navigation"
+        >
+          <Menu className="size-4" />
+        </Button>
+      ) : null}
 
       <nav className="hidden items-center gap-2 text-sm text-muted md:flex">
         {crumbs.map((crumb, idx) => (
@@ -80,7 +84,7 @@ export function Topbar({
         <div className="grid size-8 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
           {initials}
         </div>
-        <LogoutButton compact className="text-muted" />
+        {!preview ? <LogoutButton compact className="text-muted" /> : null}
       </div>
     </header>
   );
