@@ -1,16 +1,32 @@
 "use client";
 
+import {
+  BookOpen,
+  HelpCircle,
+  Lightbulb,
+  Search,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const ICONS: Record<string, LucideIcon> = {
+  lightbulb: Lightbulb,
+  search: Search,
+  "help-circle": HelpCircle,
+  "book-open": BookOpen,
+};
+
 export function NotesAskButton({
-  icon: Icon,
+  icon,
   label,
   prompt,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: keyof typeof ICONS;
   label: string;
   prompt: string;
 }) {
+  const Icon = ICONS[icon];
+
   return (
     <Button
       type="button"
@@ -24,7 +40,7 @@ export function NotesAskButton({
         );
       }}
     >
-      <Icon className="size-3.5" />
+      {Icon ? <Icon className="size-3.5" /> : null}
       {label}
     </Button>
   );

@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { BookOpen, HelpCircle, Lightbulb, Search } from "lucide-react";
 import { StudyflowChat } from "@/components/ai/studyflow-chat";
 import { NotesAskButton } from "@/components/assignment/notes-ask-button";
 import { getCourseMaterials } from "@/lib/db/queries";
@@ -50,22 +49,22 @@ async function NotesWorkspace({ assignmentId }: { assignmentId: string }) {
           <p className="text-xs text-muted">External sources disabled</p>
           <div className="ml-auto flex flex-wrap gap-1">
             <NotesAskButton
-              icon={Lightbulb}
+              icon="lightbulb"
               label="Explain"
               prompt="Explain the key concepts in my lecture notes for this assignment. Ground answers only in my materials."
             />
             <NotesAskButton
-              icon={Search}
+              icon="search"
               label="Find related"
               prompt="What related ideas in my notes should I connect for this assignment?"
             />
             <NotesAskButton
-              icon={HelpCircle}
+              icon="help-circle"
               label="Quiz me"
               prompt="Quiz me on my lecture notes for this assignment. Ask one question at a time."
             />
             <NotesAskButton
-              icon={BookOpen}
+              icon="book-open"
               label="Show source page"
               prompt="When you cite my notes, always include the source title and page if available."
             />
