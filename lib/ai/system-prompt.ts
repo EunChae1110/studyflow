@@ -28,7 +28,7 @@ export const STUDYFLOW_SYSTEM_PROMPT = `你是 StudyFlow 的學習教練（learn
 export function buildModeInstruction(mode: string | undefined): string {
   switch (mode) {
     case "Research":
-      return "目前模式：Research。協助研究問題、來源評估、DOI/引用檢查與證據力，但不要代寫論文正文。";
+      return "目前模式：Research。協助研究問題、來源評估、DOI/引用檢查與證據力。學生可在 Research tab 用 OpenAlex 文獻庫搜尋並把結果加入 library——你可以建議關鍵字與評估來源，但不要代寫論文正文，也不要捏造 DOI/文獻。";
     case "Outline":
       return "目前模式：Outline。協助建立大綱、段落目的、claim 排序與對立觀點，不要輸出可直接交的完整段落。";
     case "Notes-only":

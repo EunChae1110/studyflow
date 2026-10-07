@@ -250,10 +250,136 @@ function mapSource(row: typeof researchSources.$inferSelect): ResearchSourceItem
     venue: row.venue,
     year: row.year,
     doi: row.doi,
+    url: row.url,
     verified: row.verified,
     openAccess: row.openAccess,
     selected: row.selected,
   };
+}
+
+export async function insertResearchSource(params: {
+  userId: string;
+  assignmentId?: string | null;
+  assignmentSlug?: string | null;
+  title: string;
+  authors?: string | null;
+  venue?: string | null;
+  year?: number | null;
+  doi?: string | null;
+  url?: string | null;
+  openAccess?: boolean;
+  selected?: boolean;
+}): Promise<ResearchSourceItem | null> {
+  const db = requireDb();
+
+  let assignmentUuid: string | null = params.assignmentId ?? null;
+  if (!assignmentUuid && params.assignmentSlug) {
+    const assignment = await getAssignmentBySlug(params.assignmentSlug, params.userId);
+    // Soft-fail: allow library-only save when slug is missing/invalid.
+    assignmentUuid = assignment?.id ?? null;
+  } else if (assignmentUuid) {
+    const [row] = await db
+      .select({ id: assignments.id, userId: assignments.userId })
+      .from(assignments)
+      .where(eq(assignments.id, assignmentUuid))
+      .limit(1);
+    if (!row || row.userId !== params.userId) return null;
+  }
+
+  const doi = params.doi?.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "").trim().toLowerCase() || null;
+
+  // Dedupe by DOI within the same assignment (or user library if no assignment).
+  if (doi) {
+    const existing = await db
+      .select()
+      .from(researchSources)
+      .where(
+        assignmentUuid
+          ? eq(researchSources.assignmentId, assignmentUuid)
+          : eq(researchSources.userId, params.userId),
+      )
+      .limit(100);
+    const dup = existing.find(
+      (s) =>
+        s.doi?.toLowerCase() === doi &&
+        (assignmentUuid ? s.assignmentId === assignmentUuid : true) &&
+        s.userId === params.userId,
+    );
+    if (dup) {
+      const [updated] = await db
+        .update(researchSources)
+        .set({
+          title: params.title,
+          authors: params.authors ?? dup.authors,
+          venue: params.venue ?? dup.venue,
+          year: params.year ?? dup.year,
+          url: params.url ?? dup.url,
+          openAccess: params.openAccess ?? dup.openAccess,
+          selected: params.selected ?? dup.selected,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(researchSources.id, dup.id))
+        .returning();
+      return updated ? mapSource(updated) : mapSource(dup);
+    }
+  }
+
+  // If selecting this source, clear other selected flags on the assignment.
+  if (params.selected && assignmentUuid) {
+    await db
+      .update(researchSources)
+      .set({ selected: false, updatedAt: sql`now()` })
+      .where(eq(researchSources.assignmentId, assignmentUuid));
+  }
+
+  const [created] = await db
+    .insert(researchSources)
+    .values({
+      userId: params.userId,
+      assignmentId: assignmentUuid,
+      title: params.title,
+      authors: params.authors ?? null,
+      venue: params.venue ?? null,
+      year: params.year ?? null,
+      doi,
+      url: params.url ?? null,
+      openAccess: Boolean(params.openAccess),
+      selected: Boolean(params.selected),
+      verified: false,
+      kind: "external-research",
+    })
+    .returning();
+
+  return created ? mapSource(created) : null;
+}
+
+export async function setResearchSourceSelected(params: {
+  userId: string;
+  sourceId: string;
+  selected: boolean;
+}): Promise<ResearchSourceItem | null> {
+  const db = requireDb();
+  const [existing] = await db
+    .select()
+    .from(researchSources)
+    .where(eq(researchSources.id, params.sourceId))
+    .limit(1);
+  if (!existing || existing.userId !== params.userId) return null;
+
+  if (params.selected && existing.assignmentId) {
+    await db
+      .update(researchSources)
+      .set({ selected: false, updatedAt: sql`now()` })
+      .where(eq(researchSources.assignmentId, existing.assignmentId));
+  }
+
+  const [updated] = await db
+    .update(researchSources)
+    .set({ selected: params.selected, updatedAt: sql`now()` })
+    .where(eq(researchSources.id, params.sourceId))
+    .returning();
+
+  return updated ? mapSource(updated) : null;
 }
 
 export async function getReferences(assignmentSlug: string): Promise<ReferenceItem[]> {

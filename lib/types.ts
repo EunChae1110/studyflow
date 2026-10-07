@@ -55,6 +55,7 @@ export type ResearchSourceItem = {
   venue: string | null;
   year: number | null;
   doi: string | null;
+  url: string | null;
   verified: boolean;
   openAccess: boolean;
   selected: boolean;
