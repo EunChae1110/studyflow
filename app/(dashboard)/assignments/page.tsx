@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock3 } from "lucide-react";
 import { listAssignments } from "@/lib/db/queries";
@@ -7,18 +8,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
-export default async function AssignmentsPage() {
+function AssignmentsListFallback() {
+  return (
+    <div className="space-y-4">
+      {[0, 1].map((i) => (
+        <div key={i} className="h-40 animate-pulse rounded-xl border border-border bg-surface-muted" />
+      ))}
+    </div>
+  );
+}
+
+async function AssignmentsList() {
   const items = await listAssignments();
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Assignments</h1>
-        <p className="text-sm text-muted">
-          Understand requirements, organise sources, verify evidence, then draft independently.
-        </p>
-      </div>
-
+    <>
       {items.map((assignment) => (
         <Card key={assignment.slug} className="border-border bg-surface">
           <CardHeader className="flex flex-row items-center justify-between">
@@ -63,6 +67,23 @@ export default async function AssignmentsPage() {
           </CardContent>
         </Card>
       ))}
+    </>
+  );
+}
+
+export default function AssignmentsPage() {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-semibold">Assignments</h1>
+        <p className="text-sm text-muted">
+          Understand requirements, organise sources, verify evidence, then draft independently.
+        </p>
+      </div>
+
+      <Suspense fallback={<AssignmentsListFallback />}>
+        <AssignmentsList />
+      </Suspense>
     </div>
   );
 }
