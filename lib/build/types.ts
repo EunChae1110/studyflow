@@ -100,12 +100,20 @@ export type BuildPlanResult = {
   nextAction: string;
 };
 
+export type BuildProduceSection = {
+  heading: string;
+  body: string;
+};
+
 export type BuildProduceResult = {
-  plans: Array<{
-    section: string;
-    claimOrGoal: string;
-    evidenceOrChecks: string;
-    logicOrVerify: string;
-  }>;
+  title: string;
+  format: string;
+  sections: BuildProduceSection[];
+  appendix?: string | null;
+  /** Brief checklist titles this draft satisfies (exact match preferred). */
+  satisfiedRequirementTitles?: string[];
   nextAction: string;
 };
+
+/** Notes sourceLabel used for Build-written deliverables shown on Draft/Work. */
+export const BUILD_DELIVERABLE_SOURCE = "build-deliverable" as const;

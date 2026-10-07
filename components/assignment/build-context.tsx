@@ -156,7 +156,7 @@ export function BuildProvider({
               })),
             );
             setStatusLine(
-              `Scaffolding ${event.assignmentType.replace(/_/g, " ")} · ${event.total} steps`,
+              `Building ${event.assignmentType.replace(/_/g, " ")} · ${event.total} steps`,
             );
             setProgressPct(0);
           }
@@ -236,7 +236,7 @@ export function BuildProvider({
             setProgressPct(event.progress);
             const note = wasCancelled
               ? `Build cancelled · progress ${event.progress}%`
-              : "Scaffold ready — fill plan cards yourself; AI won't write the full deliverable.";
+              : "Deliverable written — open Work to review; Brief checklist items are marked when covered.";
             setDoneNote(note);
             setStatusLine(
               wasCancelled

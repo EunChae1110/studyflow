@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, or, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
   assignmentGuidelines,
@@ -97,7 +97,10 @@ export async function recomputeAssignmentProgress(
       .where(
         and(
           eq(notes.assignmentId, assignmentId),
-          eq(notes.sourceLabel, "draft-planner"),
+          or(
+            eq(notes.sourceLabel, "draft-planner"),
+            eq(notes.sourceLabel, "build-deliverable"),
+          ),
         ),
       ),
   ]);

@@ -39,7 +39,7 @@ export function buildStepsForType(
     },
     {
       id: "handoff",
-      label: "Coach handoff",
+      label: "Review handoff",
       tab: "draft",
       mode: "Outline",
     },
@@ -57,35 +57,35 @@ function stepLabels(type: AssignmentTypeId): Record<
         understand: "1 · Understand brief & rubric",
         gather: "2 · Research questions & sources",
         plan: "3 · Outline & claims",
-        produce: "4 · Draft plan (no essay body)",
+        produce: "4 · Write draft from guideline",
       };
     case "problem_set":
       return {
         understand: "1 · Break down questions",
         gather: "2 · Gather formulas & materials",
         plan: "3 · Solution approach plan",
-        produce: "4 · Work checklist",
+        produce: "4 · Write worked solutions",
       };
     case "lab":
       return {
         understand: "1 · Prep & safety from guideline",
         gather: "2 · Materials & method notes",
         plan: "3 · Experiment / record plan",
-        produce: "4 · Record & discuss skeleton",
+        produce: "4 · Write lab record draft",
       };
     case "coding":
       return {
         understand: "1 · Clarify deliverables",
         gather: "2 · Docs & constraints",
         plan: "3 · Design & milestones",
-        produce: "4 · Build checklist",
+        produce: "4 · Write code stubs + README",
       };
     case "presentation":
       return {
         understand: "1 · Audience & goal",
         gather: "2 · Research & examples",
         plan: "3 · Slide / talk structure",
-        produce: "4 · Rehearsal checklist",
+        produce: "4 · Write slides & speaker notes",
       };
     case "other":
     default:
@@ -93,7 +93,7 @@ function stepLabels(type: AssignmentTypeId): Record<
         understand: "1 · Understand from guideline",
         gather: "2 · Gather materials",
         plan: "3 · Plan structure",
-        produce: "4 · Produce checklist",
+        produce: "4 · Write deliverable draft",
       };
   }
 }

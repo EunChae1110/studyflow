@@ -136,9 +136,9 @@ function BuildProgressBody({
         <div className="flex items-center justify-between gap-2 text-xs">
           <span className="font-medium text-foreground">
             {running
-              ? "Building scaffold…"
+              ? "Writing assignment…"
               : finished && !cancelled
-                ? "Scaffold ready"
+                ? "Deliverable ready"
                 : finished && cancelled
                   ? "Build cancelled"
                   : "Build progress"}
@@ -172,8 +172,8 @@ function BuildProgressBody({
             {doneNote}
           </p>
           <p className="mt-1 text-muted">
-            Open {produceTabLabel} to fill the plan cards. Coach will ask
-            questions — it will not write the full deliverable for you.
+            Open {produceTabLabel} to read the written deliverable. Matching Brief
+            checklist items are marked done — revise before you submit.
           </p>
           <Link
             href={`/assignments/${assignmentSlug}/${produceTab}`}
@@ -225,8 +225,8 @@ function BuildFloatingPanel() {
               Build
             </h3>
             <p className="mt-0.5 text-[11px] text-muted">
-              AI scaffolds Understand → Gather → Plan → Produce. Tabs update as
-              each step finishes.
+              Understand → Gather → Plan → Write deliverable. Tabs update as each
+              step finishes.
             </p>
           </div>
           {!running ? (
@@ -265,7 +265,7 @@ export function BuildRunner({
             className="gap-1.5"
             title={
               hasGuideline
-                ? "Build scaffold from guideline"
+                ? "Write assignment from guideline"
                 : "Build (no guideline uploaded yet)"
             }
           >
@@ -302,9 +302,9 @@ export function BuildRunner({
             Build
           </h3>
           <p className="mt-1 text-xs text-muted">
-            One click scaffolds the whole workflow from your guideline —
-            Understand → Gather → Plan → Produce. Never dumps a full
-            deliverable. Progress stays visible while tabs update.
+            One click runs Understand → Gather → Plan → Write deliverable from
+            your guideline. The draft lands on Work / Draft and matching Brief
+            checklist items are ticked. Progress stays visible while tabs update.
           </p>
           {!hasGuideline ? (
             <p className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">

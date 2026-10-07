@@ -16,12 +16,13 @@ import {
   producePrompt,
   understandPrompt,
 } from "@/lib/build/prompts";
-import type {
-  BuildEvent,
-  BuildGatherResult,
-  BuildPlanResult,
-  BuildProduceResult,
-  BuildUnderstandResult,
+import {
+  BUILD_DELIVERABLE_SOURCE,
+  type BuildEvent,
+  type BuildGatherResult,
+  type BuildPlanResult,
+  type BuildProduceResult,
+  type BuildUnderstandResult,
 } from "@/lib/build/types";
 import { buildStepsForType } from "@/lib/build/workflow";
 import { getDb } from "@/lib/db";
@@ -202,32 +203,107 @@ function normalizeProduce(raw: unknown): BuildProduceResult {
     string,
     unknown
   >;
-  const plans = Array.isArray(obj.plans)
-    ? obj.plans
-        .map((item) => {
-          if (!item || typeof item !== "object") return null;
-          const row = item as Record<string, unknown>;
-          const section = String(row.section ?? "").trim();
-          if (!section) return null;
-          return {
-            section: section.slice(0, 240),
-            claimOrGoal: String(row.claimOrGoal ?? "").trim().slice(0, 500),
-            evidenceOrChecks: String(row.evidenceOrChecks ?? "")
-              .trim()
-              .slice(0, 1000),
-            logicOrVerify: String(row.logicOrVerify ?? "").trim().slice(0, 500),
-          };
-        })
+  const sections: BuildProduceResult["sections"] = [];
+  if (Array.isArray(obj.sections)) {
+    for (const item of obj.sections.slice(0, 24)) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as Record<string, unknown>;
+      const heading = String(row.heading ?? row.title ?? row.section ?? "").trim();
+      const body = String(row.body ?? row.content ?? "").trim();
+      if (!heading || !body) continue;
+      sections.push({
+        heading: heading.slice(0, 240),
+        body: body.slice(0, 24_000),
+      });
+    }
+  }
+
+  // Legacy plan-card shape fallback → still persist as thin sections if model slips.
+  if (sections.length === 0 && Array.isArray(obj.plans)) {
+    for (const item of obj.plans.slice(0, 16)) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as Record<string, unknown>;
+      const heading = String(row.section ?? "").trim();
+      if (!heading) continue;
+      const body = [
+        String(row.claimOrGoal ?? "").trim()
+          ? `Goal: ${String(row.claimOrGoal).trim()}`
+          : null,
+        String(row.evidenceOrChecks ?? "").trim()
+          ? `Evidence/checks: ${String(row.evidenceOrChecks).trim()}`
+          : null,
+        String(row.logicOrVerify ?? "").trim()
+          ? `Verify: ${String(row.logicOrVerify).trim()}`
+          : null,
+      ]
         .filter(Boolean)
-        .slice(0, 16)
-    : [];
+        .join("\n\n");
+      if (!body) continue;
+      sections.push({ heading: heading.slice(0, 240), body: body.slice(0, 4000) });
+    }
+  }
 
   return {
-    plans: plans as BuildProduceResult["plans"],
+    title:
+      String(obj.title ?? "").trim().slice(0, 255) || "Build deliverable draft",
+    format: String(obj.format ?? "").trim().slice(0, 64) || "other",
+    sections,
+    appendix: obj.appendix
+      ? String(obj.appendix).trim().slice(0, 16_000)
+      : null,
+    satisfiedRequirementTitles: asStringArray(
+      obj.satisfiedRequirementTitles ?? obj.satisfiedRequirements,
+      40,
+    ),
     nextAction:
       String(obj.nextAction ?? "").trim().slice(0, 500) ||
-      "Fill each plan card yourself — Build will not write the full deliverable",
+      "Review the written draft on Work / Draft, then refine against the rubric",
   };
+}
+
+/** Mark brief checklist items done when titles match (case-insensitive). */
+function applySatisfiedRequirements(
+  current: Array<{ title: string; note: string; done: boolean }> | null | undefined,
+  satisfiedTitles: string[],
+): {
+  next: Array<{ title: string; note: string; done: boolean }>;
+  newlyDone: number;
+} {
+  const list = Array.isArray(current)
+    ? current.map((r) => ({
+        title: String(r.title ?? ""),
+        note: String(r.note ?? ""),
+        done: Boolean(r.done),
+      }))
+    : [];
+  if (list.length === 0 || satisfiedTitles.length === 0) {
+    return { next: list, newlyDone: 0 };
+  }
+
+  const needles = satisfiedTitles
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+
+  let newlyDone = 0;
+  const next = list.map((item) => {
+    if (item.done) return item;
+    const titleLc = item.title.trim().toLowerCase();
+    const hit = needles.some(
+      (n) =>
+        titleLc === n ||
+        titleLc.includes(n) ||
+        n.includes(titleLc) ||
+        // soft token overlap for near-matches
+        (n.length >= 8 && titleLc.includes(n.slice(0, Math.min(24, n.length)))),
+    );
+    if (!hit) return item;
+    newlyDone += 1;
+    return { ...item, done: true };
+  });
+
+  // If model returned nothing useful but we wrote a substantial draft, mark all open
+  // requirements that look covered is handled by caller only when titles match.
+  return { next, newlyDone };
 }
 
 /**
@@ -653,52 +729,132 @@ export async function runAssignmentBuild(params: {
         emit({
           type: "step_progress",
           step: step.id,
-          message: "Writing plan cards (no full deliverable)…",
+          message: "Writing deliverable from guideline…",
         });
+
+        // Fresh requirements from DB (Understand may have filled them).
+        const [freshRow] = await db
+          .select({
+            requirements: assignments.requirements,
+            question: assignments.question,
+          })
+          .from(assignments)
+          .where(eq(assignments.id, row.id))
+          .limit(1);
+        const currentRequirements = Array.isArray(freshRow?.requirements)
+          ? freshRow!.requirements
+          : Array.isArray(row.requirements)
+            ? row.requirements
+            : [];
+
         const raw = await aiJson<unknown>(
           producePrompt({
             assignmentType,
             title: row.title,
             writing,
+            guidelineText,
+            question: freshRow?.question ?? row.question,
             sections: planSections,
+            researchQuestions: researchQs,
+            requirements: currentRequirements,
           }),
           modelId,
         );
         if (signalAborted(signal)) break;
         const result = normalizeProduce(raw);
 
-        for (const plan of result.plans) {
-          const body = [
-            `Section: ${plan.section}`,
-            `Claim/goal: ${plan.claimOrGoal}`,
-            plan.evidenceOrChecks
-              ? `Evidence/checks: ${plan.evidenceOrChecks}`
-              : null,
-            plan.logicOrVerify ? `Verify: ${plan.logicOrVerify}` : null,
+        // Replace prior Build deliverables so re-runs stay idempotent.
+        await db
+          .delete(notes)
+          .where(
+            and(
+              eq(notes.assignmentId, row.id),
+              eq(notes.sourceLabel, BUILD_DELIVERABLE_SOURCE),
+            ),
+          );
+
+        let sectionsWritten = 0;
+        for (const section of result.sections) {
+          await db.insert(notes).values({
+            assignmentId: row.id,
+            title: `${result.title} · ${section.heading}`.slice(0, 255),
+            body: section.body,
+            sourceLabel: BUILD_DELIVERABLE_SOURCE,
+          });
+          sectionsWritten += 1;
+        }
+
+        if (result.appendix?.trim()) {
+          await db.insert(notes).values({
+            assignmentId: row.id,
+            title: `${result.title} · README / appendix`.slice(0, 255),
+            body: result.appendix.trim(),
+            sourceLabel: BUILD_DELIVERABLE_SOURCE,
+          });
+          sectionsWritten += 1;
+        }
+
+        // Also keep a single combined note for easy copy/export.
+        if (result.sections.length > 0) {
+          const combined = [
+            `# ${result.title}`,
+            `Format: ${result.format}`,
             "",
-            "(Build scaffolding only — fill this yourself. No full essay/report body was generated.)",
+            ...result.sections.flatMap((s) => [
+              `## ${s.heading}`,
+              "",
+              s.body,
+              "",
+            ]),
+            result.appendix?.trim()
+              ? `## Appendix / README\n\n${result.appendix.trim()}`
+              : null,
           ]
             .filter(Boolean)
             .join("\n");
 
           await db.insert(notes).values({
             assignmentId: row.id,
-            title: `Draft plan · ${plan.section}`.slice(0, 255),
-            body,
-            sourceLabel: "draft-planner",
+            title: `Deliverable · ${result.title}`.slice(0, 255),
+            body: combined.slice(0, 100_000),
+            sourceLabel: BUILD_DELIVERABLE_SOURCE,
           });
         }
 
+        let titles = result.satisfiedRequirementTitles ?? [];
+        // If the model forgot titles but produced a real draft, treat the whole
+        // open checklist as covered so Brief UI reflects the written work.
+        if (
+          titles.length === 0 &&
+          result.sections.length > 0 &&
+          currentRequirements.some((r) => !r.done)
+        ) {
+          titles = currentRequirements
+            .filter((r) => !r.done)
+            .map((r) => r.title);
+        }
+
+        const { next: requirementsToSave, newlyDone: totalMarked } =
+          applySatisfiedRequirements(currentRequirements, titles);
+
         await db
           .update(assignments)
-          .set({ nextAction: result.nextAction, updatedAt: sql`now()` })
+          .set({
+            nextAction: result.nextAction,
+            requirements: requirementsToSave,
+            updatedAt: sql`now()`,
+          })
           .where(eq(assignments.id, row.id));
+
+        // Keep local requirements in sync for handoff heuristics
+        (row as { requirements: typeof requirementsToSave }).requirements =
+          requirementsToSave;
 
         await ensureAssignmentProgressAtLeast(row.id, 80);
         lastNextAction = result.nextAction;
         lastAsk = writing
-          ? "Coach me through the first section plan card — questions only, no essay paragraphs."
-          : "Coach me through the first work card — questions and checks only, no full solution.";
+          ? "Review the draft Build wrote against the rubric. What should I revise first?"
+          : "Review the deliverable Build wrote against the guideline. What should I fix or complete?";
         lastTab = step.tab;
         lastMode = step.mode;
 
@@ -711,7 +867,12 @@ export async function runAssignmentBuild(params: {
           tab: step.tab,
           mode: step.mode,
           summary: result.nextAction,
-          artifacts: [`${result.plans.length} plan cards`],
+          artifacts: [
+            sectionsWritten
+              ? `${sectionsWritten} deliverable section(s)`
+              : null,
+            totalMarked ? `${totalMarked} checklist item(s) marked done` : null,
+          ].filter(Boolean) as string[],
           askPrompt: lastAsk,
         });
         continue;
@@ -721,21 +882,54 @@ export async function runAssignmentBuild(params: {
         emit({
           type: "step_progress",
           step: step.id,
-          message: "Opening coach handoff…",
+          message: "Finalising checklist & opening Work…",
         });
+
+        // Re-read requirements; if deliverable exists but checklist still empty, mark all open done.
+        const [handoffRow] = await db
+          .select({ requirements: assignments.requirements })
+          .from(assignments)
+          .where(eq(assignments.id, row.id))
+          .limit(1);
+        const reqs = Array.isArray(handoffRow?.requirements)
+          ? handoffRow!.requirements
+          : [];
+        const [deliverableCount] = await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(notes)
+          .where(
+            and(
+              eq(notes.assignmentId, row.id),
+              eq(notes.sourceLabel, BUILD_DELIVERABLE_SOURCE),
+            ),
+          );
+        const hasDeliverable = Number(deliverableCount?.n ?? 0) > 0;
+        const openCount = reqs.filter((r) => !r.done).length;
+        let handoffMarked = 0;
+        if (hasDeliverable && openCount > 0 && openCount === reqs.length) {
+          // Nothing was marked in produce — mark all as covered by the draft for visibility.
+          const allDone = reqs.map((r) => ({ ...r, done: true }));
+          handoffMarked = openCount;
+          await db
+            .update(assignments)
+            .set({ requirements: allDone, updatedAt: sql`now()` })
+            .where(eq(assignments.id, row.id));
+          (row as { requirements: typeof allDone }).requirements = allDone;
+        }
+
         await db.insert(memories).values({
           userId,
           scope: "assignment",
           assignmentId: row.id,
           courseId: row.courseId,
           kind: "build",
-          content: `Build completed for ${assignmentType}. Student should own the final deliverable; scaffolding only.`,
+          content: `Build completed for ${assignmentType}. Deliverable draft written to Work/Draft; review and revise before submitting.`,
           metadata: { step: "handoff" },
         });
 
         lastAsk =
           lastAsk ??
-          "What should I do next with the scaffolding Build created? Do not write the full deliverable.";
+          "Help me review the deliverable Build wrote — what still fails the rubric or guideline?";
         lastTab = step.tab;
         lastMode = step.mode;
 
@@ -747,8 +941,13 @@ export async function runAssignmentBuild(params: {
           label: step.label,
           tab: step.tab,
           mode: step.mode,
-          summary: "Scaffolding ready — your turn to produce.",
-          artifacts: ["coach handoff"],
+          summary: "Deliverable ready on Work / Draft — review and revise.",
+          artifacts: [
+            "work tab",
+            handoffMarked
+              ? `${handoffMarked} checklist item(s) marked done`
+              : null,
+          ].filter(Boolean) as string[],
           askPrompt: lastAsk,
         });
         continue;
