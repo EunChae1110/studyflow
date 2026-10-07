@@ -1,4 +1,7 @@
+"use client";
+
 import { Sparkles, X } from "lucide-react";
+import { StudyflowChat } from "@/components/ai/studyflow-chat";
 import { PromptBar } from "@/components/ai/prompt-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +16,8 @@ type AssistantPanelProps = {
   promptHint: string;
   promptChips?: string[];
   showAttach?: boolean;
-  children: React.ReactNode;
+  live?: boolean;
+  children?: React.ReactNode;
 };
 
 const modes: AssistantMode[] = ["Notes-only", "Research", "Outline"];
@@ -25,6 +29,7 @@ export function AssistantPanel({
   promptHint,
   promptChips,
   showAttach = true,
+  live = false,
   children,
 }: AssistantPanelProps) {
   return (
@@ -52,17 +57,28 @@ export function AssistantPanel({
         ))}
       </div>
 
-      <div className="study-scroll flex-1 space-y-4 overflow-y-auto p-4">{children}</div>
-
-      <div className="border-t border-border bg-background p-3">
-        <PromptBar
+      {live ? (
+        <StudyflowChat
           mode={activeMode}
           placeholder={promptPlaceholder}
           hint={promptHint}
           extraChips={promptChips}
           showAttach={showAttach}
         />
-      </div>
+      ) : (
+        <>
+          <div className="study-scroll flex-1 space-y-4 overflow-y-auto p-4">{children}</div>
+          <div className="border-t border-border bg-background p-3">
+            <PromptBar
+              mode={activeMode}
+              placeholder={promptPlaceholder}
+              hint={promptHint}
+              extraChips={promptChips}
+              showAttach={showAttach}
+            />
+          </div>
+        </>
+      )}
     </section>
   );
 }

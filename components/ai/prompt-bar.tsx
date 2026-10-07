@@ -13,6 +13,8 @@ type PromptBarProps = {
   extraChips?: string[];
   showAttach?: boolean;
   isStreaming?: boolean;
+  onSend?: (value: string) => void | Promise<void>;
+  onStop?: () => void;
 };
 
 export function PromptBar({
@@ -22,8 +24,17 @@ export function PromptBar({
   extraChips = [],
   showAttach = true,
   isStreaming = false,
+  onSend,
+  onStop,
 }: PromptBarProps) {
   const [value, setValue] = React.useState("");
+
+  const submit = React.useCallback(async () => {
+    const next = value.trim();
+    if (!next || !onSend) return;
+    setValue("");
+    await onSend(next);
+  }, [onSend, value]);
 
   return (
     <motion.div
@@ -43,23 +54,38 @@ export function PromptBar({
           <textarea
             value={value}
             onChange={(event) => setValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                if (isStreaming) {
+                  onStop?.();
+                } else {
+                  void submit();
+                }
+              }
+            }}
             rows={2}
             placeholder={placeholder}
             className="min-h-11 max-h-28 flex-1 resize-none bg-transparent text-sm leading-6 text-foreground outline-none placeholder:text-muted"
           />
           <div className="flex items-center gap-1">
             {showAttach ? (
-              <Button variant="ghost" size="icon-sm" className="text-muted">
+              <Button variant="ghost" size="icon-sm" className="text-muted" type="button">
                 <Paperclip className="size-4" />
               </Button>
             ) : null}
             <Button
+              type="button"
               size="icon-sm"
               className={cn(
                 "bg-primary text-primary-foreground hover:bg-primary/90",
                 isStreaming && "bg-foreground text-background",
               )}
-              disabled={!value.trim() && !isStreaming}
+              disabled={!isStreaming && !value.trim()}
+              onClick={() => {
+                if (isStreaming) onStop?.();
+                else void submit();
+              }}
             >
               {isStreaming ? <Square className="size-3.5" /> : <Send className="size-3.5" />}
             </Button>
