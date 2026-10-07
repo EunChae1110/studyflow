@@ -7,7 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShieldCheck } from "lucide-react";
 
-async function LibraryBody({ tab }: { tab?: string }) {
+async function ResearchLibraryContent({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
+  const savedOnly = tab === "saved";
   const user = await requireUser();
   const [sources, assignments] = await Promise.all([
     getResearchSources({ userId: user.id, limit: 50 }),
@@ -15,10 +21,20 @@ async function LibraryBody({ tab }: { tab?: string }) {
   ]);
 
   const defaultSlug = assignments[0]?.slug ?? null;
-  const savedOnly = tab === "saved";
 
   return (
     <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-semibold">
+          {savedOnly ? "Saved References" : "Research Library"}
+        </h1>
+        <p className="text-sm text-muted">
+          {savedOnly
+            ? "Sources you have saved and verified across assignments."
+            : "Search OpenAlex for papers, save sources you verify, and keep transparent provenance tags. StudyFlow helps you find evidence — not write essays."}
+        </p>
+      </div>
+
       {!savedOnly ? (
         <>
           <LiteratureSearch
@@ -86,34 +102,24 @@ async function LibraryBody({ tab }: { tab?: string }) {
   );
 }
 
-export default async function ResearchLibraryPage({
+export default function ResearchLibraryPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const { tab } = await searchParams;
-  const savedOnly = tab === "saved";
-
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">
-          {savedOnly ? "Saved References" : "Research Library"}
-        </h1>
-        <p className="text-sm text-muted">
-          {savedOnly
-            ? "Sources you have saved and verified across assignments."
-            : "Search OpenAlex for papers, save sources you verify, and keep transparent provenance tags. StudyFlow helps you find evidence — not write essays."}
-        </p>
-      </div>
-
-      <Suspense
-        fallback={
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <div>
+            <div className="h-8 w-48 animate-pulse rounded bg-surface-muted" />
+            <div className="mt-2 h-4 w-full max-w-xl animate-pulse rounded bg-surface-muted" />
+          </div>
           <div className="h-48 animate-pulse rounded-xl bg-surface-muted" />
-        }
-      >
-        <LibraryBody tab={tab} />
-      </Suspense>
-    </div>
+        </div>
+      }
+    >
+      <ResearchLibraryContent searchParams={searchParams} />
+    </Suspense>
   );
 }
