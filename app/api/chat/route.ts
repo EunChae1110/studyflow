@@ -3,8 +3,9 @@ import {
   type UIMessage,
   streamText,
 } from "ai";
-import { buildModeInstruction, STUDYFLOW_SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import { resolveModelId } from "@/lib/ai/models";
 import { getChatModel, hasAiCredentials } from "@/lib/ai/provider";
+import { buildModeInstruction, STUDYFLOW_SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { isDatabaseConfigured } from "@/lib/db";
 import {
   ensureDemoUserAndAssignment,
@@ -20,6 +21,7 @@ type ChatBody = {
   conversationId?: string;
   mode?: "Notes-only" | "Research" | "Outline";
   assignmentId?: string;
+  model?: string;
 };
 
 function textFromMessage(message: UIMessage | undefined): string {
@@ -37,7 +39,7 @@ export async function POST(req: Request) {
     return Response.json(
       {
         error:
-          "AI is not configured. Add XAI_API_KEY or OPENAI_API_KEY to .env.local.",
+          "AI mid-station is not configured. Add AI_BASE_URL and AI_API_KEY (or OPENAI_BASE_URL / OPENAI_API_KEY) to .env.local.",
       },
       { status: 503 },
     );
@@ -46,6 +48,7 @@ export async function POST(req: Request) {
   const body = (await req.json()) as ChatBody;
   const messages = body.messages ?? [];
   const mode = body.mode ?? "Notes-only";
+  const modelId = resolveModelId(body.model);
 
   let conversationId = body.conversationId ?? body.id ?? null;
 
@@ -77,7 +80,7 @@ export async function POST(req: Request) {
   }
 
   const result = streamText({
-    model: getChatModel(),
+    model: getChatModel(modelId),
     system: `${STUDYFLOW_SYSTEM_PROMPT}\n\n${buildModeInstruction(mode)}`,
     messages: await convertToModelMessages(messages),
     onFinish: async ({ text }) => {
@@ -95,10 +98,9 @@ export async function POST(req: Request) {
   });
 
   return result.toUIMessageStreamResponse({
-    headers: conversationId
-      ? {
-          "x-conversation-id": conversationId,
-        }
-      : undefined,
+    headers: {
+      "x-model-id": modelId,
+      ...(conversationId ? { "x-conversation-id": conversationId } : {}),
+    },
   });
 }

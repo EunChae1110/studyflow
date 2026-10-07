@@ -1,23 +1,44 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { createXai } from "@ai-sdk/xai";
 import type { LanguageModel } from "ai";
+import { resolveModelId } from "@/lib/ai/models";
 
-export function getChatModel(): LanguageModel {
-  if (process.env.XAI_API_KEY) {
-    const xai = createXai({ apiKey: process.env.XAI_API_KEY });
-    return xai(process.env.XAI_MODEL?.trim() || "grok-4-fast-reasoning");
-  }
+/**
+ * StudyFlow talks to an OpenAI-compatible mid-station (中轉站), not direct OpenAI/xAI.
+ * Credentials: AI_BASE_URL + AI_API_KEY (aliases: OPENAI_BASE_URL / OPENAI_API_KEY).
+ */
+export function getMidStationConfig() {
+  const baseURL = (
+    process.env.AI_BASE_URL ||
+    process.env.OPENAI_BASE_URL ||
+    ""
+  ).trim();
+  const apiKey = (
+    process.env.AI_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    ""
+  ).trim();
 
-  if (process.env.OPENAI_API_KEY) {
-    const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    return openai(process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini");
-  }
-
-  throw new Error(
-    "Missing AI API key. Set XAI_API_KEY (preferred) or OPENAI_API_KEY in .env.local.",
-  );
+  return { baseURL, apiKey };
 }
 
 export function hasAiCredentials(): boolean {
-  return Boolean(process.env.XAI_API_KEY || process.env.OPENAI_API_KEY);
+  const { baseURL, apiKey } = getMidStationConfig();
+  return Boolean(baseURL && apiKey);
+}
+
+export function getChatModel(modelId?: string | null): LanguageModel {
+  const { baseURL, apiKey } = getMidStationConfig();
+
+  if (!baseURL || !apiKey) {
+    throw new Error(
+      "Missing AI mid-station config. Set AI_BASE_URL and AI_API_KEY (or OPENAI_BASE_URL / OPENAI_API_KEY) in .env.local.",
+    );
+  }
+
+  const openai = createOpenAI({
+    apiKey,
+    baseURL,
+  });
+
+  return openai(resolveModelId(modelId));
 }

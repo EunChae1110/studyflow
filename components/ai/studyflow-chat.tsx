@@ -7,6 +7,7 @@ import { FileText } from "lucide-react";
 import { AssistantAnswer, UserBubble } from "@/components/ai/chat";
 import { PromptBar } from "@/components/ai/prompt-bar";
 import { ThinkingBlock } from "@/components/ai/thinking-block";
+import { DEFAULT_MODEL_ID } from "@/lib/ai/models";
 import { Button } from "@/components/ui/button";
 
 type StudyflowChatProps = {
@@ -36,6 +37,7 @@ export function StudyflowChat({
   seedQuestions = [],
 }: StudyflowChatProps) {
   const [conversationId] = React.useState(() => crypto.randomUUID());
+  const [modelId, setModelId] = React.useState(DEFAULT_MODEL_ID);
 
   const transport = React.useMemo(
     () =>
@@ -44,9 +46,10 @@ export function StudyflowChat({
         body: {
           mode,
           conversationId,
+          model: modelId,
         },
       }),
-    [mode, conversationId],
+    [mode, conversationId, modelId],
   );
 
   const { messages, sendMessage, status, stop, error } = useChat({
@@ -135,6 +138,8 @@ export function StudyflowChat({
           extraChips={extraChips}
           showAttach={showAttach}
           isStreaming={isStreaming}
+          modelId={modelId}
+          onModelChange={setModelId}
           onSend={handleSend}
           onStop={() => stop()}
         />

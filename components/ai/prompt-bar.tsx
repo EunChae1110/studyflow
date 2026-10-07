@@ -2,7 +2,12 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Paperclip, Send, Square } from "lucide-react";
+import { ChevronDown, Paperclip, Send, Square } from "lucide-react";
+import {
+  DEFAULT_MODEL_ID,
+  STUDYFLOW_MODELS,
+  type StudyflowModelOption,
+} from "@/lib/ai/models";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +18,8 @@ type PromptBarProps = {
   extraChips?: string[];
   showAttach?: boolean;
   isStreaming?: boolean;
+  modelId?: string;
+  onModelChange?: (modelId: string) => void;
   onSend?: (value: string) => void | Promise<void>;
   onStop?: () => void;
 };
@@ -24,10 +31,22 @@ export function PromptBar({
   extraChips = [],
   showAttach = true,
   isStreaming = false,
+  modelId,
+  onModelChange,
   onSend,
   onStop,
 }: PromptBarProps) {
   const [value, setValue] = React.useState("");
+  const [internalModelId, setInternalModelId] = React.useState(DEFAULT_MODEL_ID);
+  const selectedModelId = modelId ?? internalModelId;
+
+  const setModel = (next: string) => {
+    if (onModelChange) onModelChange(next);
+    else setInternalModelId(next);
+  };
+
+  const selected =
+    STUDYFLOW_MODELS.find((m) => m.id === selectedModelId) ?? STUDYFLOW_MODELS[0]!;
 
   const submit = React.useCallback(async () => {
     const next = value.trim();
@@ -46,6 +65,7 @@ export function PromptBar({
       <div className="rounded-xl border border-border bg-surface p-3 shadow-sm transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           <Chip active>{mode}</Chip>
+          <ModelSelector selected={selected} onChange={setModel} disabled={isStreaming} />
           {extraChips.map((chip) => (
             <Chip key={chip}>{chip}</Chip>
           ))}
@@ -97,6 +117,36 @@ export function PromptBar({
         <kbd className="rounded border border-border bg-surface px-1.5 py-0.5">⇧↵</kbd> new line
       </p>
     </motion.div>
+  );
+}
+
+function ModelSelector({
+  selected,
+  onChange,
+  disabled,
+}: {
+  selected: StudyflowModelOption;
+  onChange: (modelId: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="relative inline-flex items-center">
+      <span className="sr-only">選擇模型</span>
+      <select
+        value={selected.id}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        className="appearance-none rounded-full border border-border bg-surface-muted py-1 pr-7 pl-2.5 text-[11.5px] font-medium text-foreground outline-none hover:bg-surface disabled:opacity-60"
+        aria-label="AI model"
+      >
+        {STUDYFLOW_MODELS.map((model) => (
+          <option key={model.id} value={model.id}>
+            {model.label} · {model.id}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2 text-muted" />
+    </label>
   );
 }
 
