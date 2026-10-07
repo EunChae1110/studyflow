@@ -2,9 +2,9 @@ import { LandingPage } from "@/components/marketing/landing-page";
 import { getSession } from "@/lib/auth/session";
 
 export const metadata = {
-  title: "StudyFlow — Evidence-based assignment workflow",
+  title: "StudyFlow — Assignment workspace for university students",
   description:
-    "Turn every assignment into a clear, evidence-based workflow. Notes, research, claim–evidence, and outline coaching — never ghostwriting.",
+    "Brief, notes, research, and claim–evidence in one place. Structure first — you write the essay.",
 };
 
 export default async function Home() {
