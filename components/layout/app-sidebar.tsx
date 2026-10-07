@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { studentProfile } from "@/lib/mock-data";
 import { courseNav, supportNav, toolNav, workspaceNav } from "@/lib/navigation";
+import { StudyFlowLockup, StudyFlowMark } from "@/components/brand/studyflow-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,10 +30,15 @@ export function AppSidebar({ collapsed, onToggle, className }: SidebarProps) {
       )}
     >
       <div className="flex items-center gap-2 px-4 py-4">
-        <div className="grid size-8 place-items-center rounded-[10px] bg-primary text-sm font-bold text-primary-foreground">
-          S
-        </div>
-        {!collapsed && <span className="text-base font-semibold">StudyFlow</span>}
+        {collapsed ? (
+          <StudyFlowMark className="size-8" withShadow />
+        ) : (
+          <StudyFlowLockup
+            className="gap-2.5"
+            markClassName="size-8"
+            wordmarkClassName="text-[17px]"
+          />
+        )}
         <Button
           variant="ghost"
           size="icon-sm"

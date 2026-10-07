@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { StudyFlowLockup } from "@/components/brand/studyflow-logo";
 import { studentProfile } from "@/lib/mock-data";
 import { courseNav, supportNav, toolNav, workspaceNav } from "@/lib/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -12,12 +13,11 @@ export function MobileSidebarContent({ onNavigate }: { onNavigate?: () => void }
 
   return (
     <div className="h-full overflow-y-auto bg-surface p-4">
-      <div className="mb-5 flex items-center gap-2">
-        <div className="grid size-8 place-items-center rounded-[10px] bg-primary text-sm font-bold text-primary-foreground">
-          S
-        </div>
-        <span className="text-base font-semibold">StudyFlow</span>
-      </div>
+      <StudyFlowLockup
+        className="mb-5 gap-2.5"
+        markClassName="size-8"
+        wordmarkClassName="text-[17px]"
+      />
 
       <MobileGroup title="Workspace">
         {workspaceNav.map(({ href, label, icon: Icon, count }) => {

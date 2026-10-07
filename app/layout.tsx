@@ -21,6 +21,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "StudyFlow",
   description: "Turn every assignment into a clear, evidence-based workflow.",
+  icons: {
+    icon: "/studyflow-mark.svg",
+    shortcut: "/studyflow-mark.svg",
+    apple: "/studyflow-mark.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
