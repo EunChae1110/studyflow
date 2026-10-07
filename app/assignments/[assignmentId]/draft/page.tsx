@@ -3,7 +3,13 @@ import { DraftPlannerForm } from "@/components/assignment/draft-planner-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function AssignmentDraftPage() {
+export default async function AssignmentDraftPage({
+  params,
+}: {
+  params: Promise<{ assignmentId: string }>;
+}) {
+  const { assignmentId } = await params;
+
   return (
     <div className="space-y-4">
       <div>
@@ -14,7 +20,7 @@ export default function AssignmentDraftPage() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <DraftPlannerForm />
+        <DraftPlannerForm assignmentSlug={assignmentId} />
         <Card className="border-border bg-surface">
           <CardHeader>
             <CardTitle className="text-base">Support guardrails</CardTitle>

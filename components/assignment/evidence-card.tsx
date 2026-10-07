@@ -1,17 +1,27 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { verifyEvidenceAction } from "@/lib/workspace/actions";
 
 export function EvidenceCard({
+  evidenceId,
   source,
   status,
   quote,
   needsReview = false,
 }: {
+  evidenceId?: string;
   source: string;
   status: string;
   quote: string;
   needsReview?: boolean;
 }) {
+  const router = useRouter();
+  const [pending, setPending] = React.useState(false);
+
   return (
     <article
       className={`rounded-xl border bg-surface p-3 ${
@@ -34,11 +44,24 @@ export function EvidenceCard({
         “{quote}”
       </blockquote>
       <div className="mt-2 flex gap-1.5">
-        <Button size="sm" variant={needsReview ? "default" : "outline"}>
-          {needsReview ? "Verify source" : "Verify"}
-        </Button>
-        <Button size="sm" variant="ghost">
-          {needsReview ? "Remove" : "Add note"}
+        <Button
+          size="sm"
+          variant={needsReview ? "default" : "outline"}
+          disabled={!evidenceId || pending || !needsReview}
+          title={!evidenceId ? "Save evidence first" : needsReview ? "Mark verified" : "Already verified"}
+          onClick={async () => {
+            if (!evidenceId) return;
+            setPending(true);
+            try {
+              const result = await verifyEvidenceAction(evidenceId);
+              if (!result.ok) window.alert(result.error ?? "Verify failed");
+              else router.refresh();
+            } finally {
+              setPending(false);
+            }
+          }}
+        >
+          {pending ? "Saving…" : needsReview ? "Verify source" : "Verified"}
         </Button>
       </div>
     </article>

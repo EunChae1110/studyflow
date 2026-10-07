@@ -1,12 +1,11 @@
 "use client";
 
+import * as React from "react";
 import { Sparkles, X } from "lucide-react";
 import { StudyflowChat } from "@/components/ai/studyflow-chat";
-import { Badge } from "@/components/ui/badge";
+import type { AssistantMode } from "@/components/ai/prompt-bar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-type AssistantMode = "Notes-only" | "Research" | "Outline";
 
 type AssistantPanelProps = {
   title?: string;
@@ -14,13 +13,31 @@ type AssistantPanelProps = {
   promptPlaceholder: string;
   promptHint: string;
   promptChips?: string[];
-  showAttach?: boolean;
   live?: boolean;
   assignmentId?: string;
   seedQuestions?: string[];
   children?: React.ReactNode;
   className?: string;
   onClose?: () => void;
+  acceptAskEvents?: boolean;
+};
+
+const MODE_COPY: Record<
+  AssistantMode,
+  { placeholder: string; hint: string }
+> = {
+  "Notes-only": {
+    placeholder: "Ask about your lecture materials...",
+    hint: "External sources disabled. Answers are grounded only in your course materials.",
+  },
+  Research: {
+    placeholder: "Ask about sources, DOI checks, or evidence strength...",
+    hint: "Learning support only — understand, verify, and plan. No essay generation.",
+  },
+  Outline: {
+    placeholder: "Ask for structural feedback or guiding questions...",
+    hint: "Primary actions: Check logic · Build evidence · Add to outline. No essay generation.",
+  },
 };
 
 const modes: AssistantMode[] = ["Notes-only", "Research", "Outline"];
@@ -31,14 +48,25 @@ export function AssistantPanel({
   promptPlaceholder,
   promptHint,
   promptChips,
-  showAttach = true,
   live = false,
   assignmentId,
   seedQuestions,
   children,
   className,
   onClose,
+  acceptAskEvents = true,
 }: AssistantPanelProps) {
+  const [mode, setMode] = React.useState<AssistantMode>(activeMode);
+
+  React.useEffect(() => {
+    setMode(activeMode);
+  }, [activeMode]);
+
+  const copy = MODE_COPY[mode];
+  const resolvedPlaceholder =
+    mode === activeMode ? promptPlaceholder || copy.placeholder : copy.placeholder;
+  const resolvedHint = mode === activeMode ? promptHint || copy.hint : copy.hint;
+
   return (
     <section className={cn("flex h-full min-h-[500px] flex-col bg-surface", className)}>
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -60,28 +88,31 @@ export function AssistantPanel({
         ) : null}
       </header>
       <div className="grid grid-cols-3 gap-1 border-b border-border p-2">
-        {modes.map((mode) => (
-          <Badge
-            key={mode}
+        {modes.map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
             className={cn(
-              "justify-center rounded-md border border-transparent bg-transparent py-1 text-[11px] text-muted",
-              mode === activeMode && "bg-primary-soft text-primary",
+              "rounded-md border border-transparent py-1 text-[11px] font-medium text-muted transition-colors hover:bg-surface-muted hover:text-foreground",
+              m === mode && "bg-primary-soft text-primary",
             )}
           >
-            {mode}
-          </Badge>
+            {m}
+          </button>
         ))}
       </div>
 
       {live ? (
         <StudyflowChat
-          mode={activeMode}
-          placeholder={promptPlaceholder}
-          hint={promptHint}
+          mode={mode}
+          onModeChange={setMode}
+          placeholder={resolvedPlaceholder}
+          hint={resolvedHint}
           extraChips={promptChips}
-          showAttach={showAttach}
           assignmentId={assignmentId}
           seedQuestions={seedQuestions}
+          acceptAskEvents={acceptAskEvents}
         />
       ) : (
         <div className="study-scroll flex-1 space-y-4 overflow-y-auto p-4">

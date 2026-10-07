@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { Download, Share2, Shield, Sparkles } from "lucide-react";
+import { Shield } from "lucide-react";
 import { DeleteButton } from "@/components/workspace/delete-button";
 import type { AssignmentDetail } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export function AssignmentHeader({ assignment }: { assignment: AssignmentDetail }) {
   return (
@@ -32,18 +31,6 @@ export function AssignmentHeader({ assignment }: { assignment: AssignmentDetail 
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm">
-            <Share2 className="size-3.5" />
-            Share
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="size-3.5" />
-            Export
-          </Button>
-          <Button variant="ghost" size="sm">
-            <Sparkles className="size-3.5" />
-            Actions
-          </Button>
           <DeleteButton
             kind="assignment"
             id={assignment.slug}

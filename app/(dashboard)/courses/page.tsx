@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BookOpen, FileCheck2, GraduationCap } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getCoursesForUser } from "@/lib/db/queries";
+import { CreateCourseForm } from "@/components/workspace/create-course-form";
 import { DeleteButton } from "@/components/workspace/delete-button";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,16 +14,20 @@ export default async function CoursesPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Courses</h1>
-        <p className="text-sm text-muted">
-          Course hubs keep lecture notes, assignment requirements, and source evidence connected.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Courses</h1>
+          <p className="text-sm text-muted">
+            Course hubs keep lecture notes, assignment requirements, and source evidence connected.
+          </p>
+        </div>
+        <CreateCourseForm />
       </div>
       {courses.length === 0 ? (
         <Card className="border-border bg-surface">
-          <CardContent className="p-6 text-sm text-muted">
-            No courses yet. Create a course when you add your first assignment.
+          <CardContent className="space-y-3 p-6 text-sm text-muted">
+            <p>No courses yet. Create your first course to group assignments and durable AI memory.</p>
+            <CreateCourseForm triggerVariant="outline" />
           </CardContent>
         </Card>
       ) : (

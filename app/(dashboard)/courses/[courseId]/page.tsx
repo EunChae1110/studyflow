@@ -6,6 +6,7 @@ import {
   getCourseById,
   listAssignmentsForCourse,
 } from "@/lib/db/queries";
+import { CreateAssignmentForm } from "@/components/workspace/create-assignment-form";
 import { DeleteButton } from "@/components/workspace/delete-button";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -24,6 +25,9 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
   if (!course) notFound();
 
   const items = await listAssignmentsForCourse(course.id, user.id);
+  const courseOptions = [
+    { id: course.id, name: course.name, code: course.code },
+  ];
 
   return (
     <div className="space-y-4">
@@ -43,20 +47,32 @@ export default async function CourseDetailPage({ params }: CoursePageProps) {
             {[course.code, course.term].filter(Boolean).join(" · ") || "Course workspace"}
           </p>
         </div>
-        <DeleteButton
-          kind="course"
-          id={course.id}
-          label={course.name}
-          redirectTo="/courses"
-        />
+        <div className="flex flex-wrap gap-2">
+          <CreateAssignmentForm
+            courses={courseOptions}
+            defaultCourseId={course.id}
+            triggerLabel="New assignment"
+          />
+          <DeleteButton
+            kind="course"
+            id={course.id}
+            label={course.name}
+            redirectTo="/courses"
+          />
+        </div>
       </div>
 
       <div>
         <h2 className="mb-2 text-sm font-semibold">Assignments</h2>
         {items.length === 0 ? (
           <Card className="border-border bg-surface">
-            <CardContent className="p-6 text-sm text-muted">
-              No assignments linked to this course yet.
+            <CardContent className="space-y-3 p-6 text-sm text-muted">
+              <p>No assignments linked to this course yet.</p>
+              <CreateAssignmentForm
+                courses={courseOptions}
+                defaultCourseId={course.id}
+                triggerVariant="outline"
+              />
             </CardContent>
           </Card>
         ) : (

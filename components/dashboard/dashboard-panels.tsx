@@ -19,11 +19,16 @@ export function ContinueWorkingCard({
           <Badge className="bg-primary-soft text-primary">Get started</Badge>
           <h2 className="text-xl font-semibold">No active assignment yet</h2>
           <p className="text-sm text-muted">
-            Create or seed an assignment to continue your evidence-based workflow.
+            Create a course and assignment to continue your evidence-based workflow.
           </p>
-          <Link href="/assignments" className={cn(buttonVariants(), "inline-flex")}>
-            View assignments
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/courses" className={cn(buttonVariants(), "inline-flex")}>
+              Create course
+            </Link>
+            <Link href="/assignments" className={cn(buttonVariants({ variant: "outline" }), "inline-flex")}>
+              View assignments
+            </Link>
+          </div>
         </CardContent>
       </Card>
     );

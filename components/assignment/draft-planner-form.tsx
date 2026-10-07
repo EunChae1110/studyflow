@@ -1,96 +1,102 @@
 "use client";
 
 import * as React from "react";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useActionState } from "react";
 import { CircleCheckBig } from "lucide-react";
+import {
+  saveDraftPlannerAction,
+  type WorkspaceActionState,
+} from "@/lib/workspace/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-const plannerSchema = z.object({
-  section: z.string().min(3, "Section name is required."),
-  claim: z.string().min(20, "Add a clearer claim."),
-  evidence: z.string().min(12, "Add at least one evidence note."),
-  logicCheck: z.string().min(12, "Document how the claim is justified."),
-});
+const initial: WorkspaceActionState = { ok: false };
 
-type PlannerValues = z.infer<typeof plannerSchema>;
+export function DraftPlannerForm({ assignmentSlug }: { assignmentSlug: string }) {
+  const [state, formAction, pending] = useActionState(
+    saveDraftPlannerAction,
+    initial,
+  );
 
-export function DraftPlannerForm() {
-  const [saved, setSaved] = React.useState(false);
-  const form = useForm<PlannerValues>({
-    resolver: zodResolver(plannerSchema),
-    defaultValues: {
-      section: "Body — Integrity benefits",
-      claim: "3NF reduces update anomalies by removing transitive dependencies.",
-      evidence: "Chen & Okonkwo (2023), p.214 + Lecture 04, p.15",
-      logicCheck: "",
-    },
-  });
-
-  const onSubmit = form.handleSubmit(() => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1800);
-  });
+  const askAi = (prompt: string) => {
+    window.dispatchEvent(new CustomEvent("studyflow:open-ai"));
+    window.dispatchEvent(
+      new CustomEvent("studyflow:ask-ai", { detail: { prompt } }),
+    );
+  };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3 rounded-xl border border-border bg-surface p-4">
+    <form action={formAction} className="space-y-3 rounded-xl border border-border bg-surface p-4">
+      <input type="hidden" name="assignmentSlug" value={assignmentSlug} />
       <h3 className="text-sm font-semibold">Draft planning worksheet</h3>
       <p className="text-xs text-muted">
         Use AI to organise and verify. You write the final argument in your own words.
+        Notes save to this assignment.
       </p>
+
+      {state.error ? (
+        <p className="text-xs text-destructive">{state.error}</p>
+      ) : null}
 
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted">Section</label>
-        <Input {...form.register("section")} className="bg-background" />
-        <FieldError message={form.formState.errors.section?.message} />
+        <Input name="section" required minLength={3} className="bg-background" />
       </div>
 
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted">Claim</label>
-        <Textarea {...form.register("claim")} className="min-h-16 bg-background" />
-        <FieldError message={form.formState.errors.claim?.message} />
+        <Textarea name="claim" required minLength={12} className="min-h-16 bg-background" />
       </div>
 
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted">Evidence anchors</label>
-        <Textarea {...form.register("evidence")} className="min-h-16 bg-background" />
-        <FieldError message={form.formState.errors.evidence?.message} />
+        <Textarea name="evidence" className="min-h-16 bg-background" />
       </div>
 
       <div className="space-y-1">
         <label className="text-xs font-medium text-muted">Logic check</label>
         <Textarea
-          {...form.register("logicCheck")}
+          name="logicCheck"
           placeholder="Explain why the evidence supports the claim, and one limitation to evaluate."
           className="min-h-20 bg-background"
         />
-        <FieldError message={form.formState.errors.logicCheck?.message} />
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button type="submit">Save planning note</Button>
-        <Button type="button" variant="outline">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving…" : "Save planning note"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            askAi(
+              "Check the logic of my draft plan for this assignment. Point out gaps between claims and evidence — do not rewrite my essay.",
+            )
+          }
+        >
           Verify logic
         </Button>
-        <Button type="button" variant="outline">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            askAi(
+              "Help me build stronger evidence for my claims. Suggest what to look for in sources — do not invent citations.",
+            )
+          }
+        >
           Build evidence
         </Button>
       </div>
 
-      {saved ? (
+      {state.ok ? (
         <p className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
           <CircleCheckBig className="size-3.5" />
-          Saved to draft notes.
+          Saved to assignment notes.
         </p>
       ) : null}
     </form>
   );
-}
-
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return <p className="text-xs text-red-600 dark:text-red-400">{message}</p>;
 }

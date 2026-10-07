@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { BookOpen, HelpCircle, Lightbulb, Search } from "lucide-react";
 import { StudyflowChat } from "@/components/ai/studyflow-chat";
+import { NotesAskButton } from "@/components/assignment/notes-ask-button";
 import { getCourseMaterials } from "@/lib/db/queries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,11 +18,10 @@ async function NotesWorkspace({ assignmentId }: { assignmentId: string }) {
             <p className="px-1 text-xs text-muted">No materials uploaded yet.</p>
           ) : (
             materials.map((doc, index) => (
-              <button
-                type="button"
+              <div
                 key={doc.id}
                 className={`w-full rounded-lg px-3 py-2 text-left ${
-                  index === 0 ? "bg-primary-soft text-primary" : "hover:bg-surface-muted"
+                  index === 0 ? "bg-primary-soft text-primary" : ""
                 }`}
               >
                 <p className="text-sm font-medium">{doc.title}</p>
@@ -29,11 +29,17 @@ async function NotesWorkspace({ assignmentId }: { assignmentId: string }) {
                   {doc.pages != null ? `${doc.pages} pages · ` : ""}
                   {doc.status}
                 </p>
-              </button>
+              </div>
             ))
           )}
         </div>
-        <Button variant="outline" size="sm" className="mt-4 w-full">
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4 w-full"
+          disabled
+          title="Material upload coming next"
+        >
           + Upload material
         </Button>
       </aside>
@@ -43,10 +49,26 @@ async function NotesWorkspace({ assignmentId }: { assignmentId: string }) {
           <Badge className="bg-primary-soft text-primary">Notes-only</Badge>
           <p className="text-xs text-muted">External sources disabled</p>
           <div className="ml-auto flex flex-wrap gap-1">
-            <TopAction icon={Lightbulb} label="Explain" />
-            <TopAction icon={Search} label="Find related" />
-            <TopAction icon={HelpCircle} label="Quiz me" />
-            <TopAction icon={BookOpen} label="Show source page" />
+            <NotesAskButton
+              icon={Lightbulb}
+              label="Explain"
+              prompt="Explain the key concepts in my lecture notes for this assignment. Ground answers only in my materials."
+            />
+            <NotesAskButton
+              icon={Search}
+              label="Find related"
+              prompt="What related ideas in my notes should I connect for this assignment?"
+            />
+            <NotesAskButton
+              icon={HelpCircle}
+              label="Quiz me"
+              prompt="Quiz me on my lecture notes for this assignment. Ask one question at a time."
+            />
+            <NotesAskButton
+              icon={BookOpen}
+              label="Show source page"
+              prompt="When you cite my notes, always include the source title and page if available."
+            />
           </div>
         </div>
 
@@ -54,7 +76,7 @@ async function NotesWorkspace({ assignmentId }: { assignmentId: string }) {
           mode="Notes-only"
           placeholder="Ask about your lecture materials..."
           hint="External sources disabled. Answers are grounded only in your course materials."
-          extraChips={materials[0] ? [materials[0].title] : undefined}
+          extraChips={["Explain this concept", "Quiz me"]}
           assignmentId={assignmentId}
           seedQuestions={[
             "Summarise the key definitions in my lecture notes",
@@ -76,20 +98,5 @@ export default async function AssignmentNotesPage({
     <Suspense fallback={<div className="h-[640px] animate-pulse rounded-xl bg-surface-muted" />}>
       <NotesWorkspace assignmentId={assignmentId} />
     </Suspense>
-  );
-}
-
-function TopAction({
-  icon: Icon,
-  label,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-}) {
-  return (
-    <Button variant="ghost" size="sm" className="text-xs">
-      <Icon className="size-3.5" />
-      {label}
-    </Button>
   );
 }

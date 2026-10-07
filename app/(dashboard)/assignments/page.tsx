@@ -2,11 +2,12 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock3 } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { listAssignments } from "@/lib/db/queries";
+import { getCoursesForUser, listAssignments } from "@/lib/db/queries";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { CreateAssignmentForm } from "@/components/workspace/create-assignment-form";
 import { DeleteButton } from "@/components/workspace/delete-button";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +23,21 @@ function AssignmentsListFallback() {
 
 async function AssignmentsList() {
   const user = await requireUser();
-  const items = await listAssignments(user.id);
+  const [items, courses] = await Promise.all([
+    listAssignments(user.id),
+    getCoursesForUser(user.id),
+  ]);
+
+  if (items.length === 0) {
+    return (
+      <Card className="border-border bg-surface">
+        <CardContent className="space-y-3 p-6 text-sm text-muted">
+          <p>No assignments yet. Create one to start the evidence-based workflow.</p>
+          <CreateAssignmentForm courses={courses} triggerVariant="outline" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <>
@@ -65,7 +80,12 @@ async function AssignmentsList() {
                 Open workspace
                 <ArrowRight className="size-4" />
               </Link>
-              <Button variant="outline">Review checklist</Button>
+              <Link
+                href={`/assignments/${assignment.slug}/brief`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Review checklist
+              </Link>
               <DeleteButton
                 kind="assignment"
                 id={assignment.slug}
@@ -80,15 +100,28 @@ async function AssignmentsList() {
   );
 }
 
-export default function AssignmentsPage() {
+async function AssignmentsHeader() {
+  const user = await requireUser();
+  const courses = await getCoursesForUser(user.id);
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <h1 className="text-2xl font-semibold">Assignments</h1>
         <p className="text-sm text-muted">
           Understand requirements, organise sources, verify evidence, then draft independently.
         </p>
       </div>
+      <CreateAssignmentForm courses={courses} />
+    </div>
+  );
+}
+
+export default function AssignmentsPage() {
+  return (
+    <div className="space-y-4">
+      <Suspense fallback={<div className="h-16 animate-pulse rounded-xl bg-surface-muted" />}>
+        <AssignmentsHeader />
+      </Suspense>
 
       <Suspense fallback={<AssignmentsListFallback />}>
         <AssignmentsList />

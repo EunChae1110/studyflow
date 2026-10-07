@@ -39,6 +39,12 @@ export const assistantModeEnum = pgEnum("assistant_mode", [
   "Outline",
 ]);
 
+export const memoryScopeEnum = pgEnum("memory_scope", [
+  "user",
+  "course",
+  "assignment",
+]);
+
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -229,16 +235,37 @@ export const aiMessages = pgTable("ai_messages", {
   ...timestamps,
 });
 
+
+export const memories = pgTable("memories", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  scope: memoryScopeEnum("scope").notNull(),
+  courseId: uuid("course_id").references(() => courses.id, {
+    onDelete: "cascade",
+  }),
+  assignmentId: uuid("assignment_id").references(() => assignments.id, {
+    onDelete: "cascade",
+  }),
+  kind: varchar("kind", { length: 64 }).default("fact").notNull(),
+  content: text("content").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  ...timestamps,
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   courses: many(courses),
   assignments: many(assignments),
   researchSources: many(researchSources),
   aiConversations: many(aiConversations),
+  memories: many(memories),
 }));
 
 export const coursesRelations = relations(courses, ({ one, many }) => ({
   user: one(users, { fields: [courses.userId], references: [users.id] }),
   assignments: many(assignments),
+  memories: many(memories),
 }));
 
 export const assignmentsRelations = relations(assignments, ({ one, many }) => ({
@@ -252,6 +279,7 @@ export const assignmentsRelations = relations(assignments, ({ one, many }) => ({
   claims: many(claims),
   outlines: many(outlines),
   aiConversations: many(aiConversations),
+  memories: many(memories),
 }));
 
 export const claimsRelations = relations(claims, ({ one, many }) => ({
@@ -278,5 +306,14 @@ export const aiMessagesRelations = relations(aiMessages, ({ one }) => ({
   conversation: one(aiConversations, {
     fields: [aiMessages.conversationId],
     references: [aiConversations.id],
+  }),
+}));
+
+export const memoriesRelations = relations(memories, ({ one }) => ({
+  user: one(users, { fields: [memories.userId], references: [users.id] }),
+  course: one(courses, { fields: [memories.courseId], references: [courses.id] }),
+  assignment: one(assignments, {
+    fields: [memories.assignmentId],
+    references: [assignments.id],
   }),
 }));

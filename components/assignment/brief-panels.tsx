@@ -1,3 +1,5 @@
+"use client";
+
 import { Sparkles } from "lucide-react";
 import { WorkflowStepper } from "@/components/assignment/workflow-stepper";
 import type { AssignmentDetail } from "@/lib/types";
@@ -16,6 +18,18 @@ export function BriefPanels({
 }) {
   const doneCount = assignment.requirements.filter((r) => r.done).length;
   const total = assignment.requirements.length;
+
+  const askAi = () => {
+    window.dispatchEvent(new CustomEvent("studyflow:open-ai"));
+    window.dispatchEvent(
+      new CustomEvent("studyflow:ask-ai", {
+        detail: {
+          prompt:
+            'What does this assignment ask me to do, and what should I verify first against the rubric?',
+        },
+      }),
+    );
+  };
 
   return (
     <div>
@@ -79,8 +93,10 @@ export function BriefPanels({
 
           {showAskAi ? (
             <Button
+              type="button"
               variant="secondary"
               className="w-full bg-primary-soft text-primary hover:bg-primary-soft/80"
+              onClick={askAi}
             >
               <Sparkles className="size-4" />
               Ask AI to break down this requirement

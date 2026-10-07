@@ -8,7 +8,6 @@ import {
 } from "@tanstack/react-table/legacy";
 import type { ReferenceItem } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -64,15 +63,6 @@ const columns: LegacyColumnDef<ReferenceItem, unknown>[] = [
 
       return <Badge className={className}>{status}</Badge>;
     },
-  },
-  {
-    id: "action",
-    header: "",
-    cell: ({ row }: { row: { original: ReferenceItem } }) => (
-      <Button size="sm" variant={row.original.status === "Incomplete" ? "secondary" : "ghost"}>
-        {row.original.status === "Incomplete" ? "Fix metadata" : "Edit"}
-      </Button>
-    ),
   },
 ];
 

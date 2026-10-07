@@ -4,6 +4,7 @@ import {
   streamText,
 } from "ai";
 import { getSession } from "@/lib/auth/session";
+import { buildHybridContextPack } from "@/lib/ai/context-pack";
 import { resolveModelId } from "@/lib/ai/models";
 import { getChatModel, hasAiCredentials } from "@/lib/ai/provider";
 import { buildModeInstruction, STUDYFLOW_SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
@@ -58,12 +59,14 @@ export async function POST(req: Request) {
   const modelId = resolveModelId(body.model);
 
   let conversationId = body.conversationId ?? body.id ?? null;
+  let assignmentUuid: string | null = null;
+  let contextPack = "";
 
   if (isDatabaseConfigured()) {
     try {
       const chatUser = await resolveChatUser(session.userId);
       if (chatUser) {
-        const assignmentUuid = await resolveAssignmentId(body.assignmentId);
+        assignmentUuid = await resolveAssignmentId(body.assignmentId);
         const conversation = await getOrCreateConversation({
           userId: chatUser.userId,
           assignmentId: assignmentUuid,
@@ -71,6 +74,11 @@ export async function POST(req: Request) {
           conversationId,
         });
         conversationId = conversation?.id ?? conversationId;
+
+        contextPack = await buildHybridContextPack({
+          userId: chatUser.userId,
+          assignmentUuid,
+        });
 
         const lastUser = [...messages].reverse().find((m) => m.role === "user");
         const userText = textFromMessage(lastUser);
@@ -87,12 +95,19 @@ export async function POST(req: Request) {
     }
   }
 
-  // Prefer mid-station chat completions (most 中轉站 expose /v1/chat/completions).
-  // Reasoning parts are forwarded when the upstream model emits them; UI also
-  // shows an honest timer while waiting even if no reasoning tokens arrive.
+  const system = [
+    STUDYFLOW_SYSTEM_PROMPT,
+    buildModeInstruction(mode),
+    contextPack
+      ? `---\nHybrid memory context (assignment pack → course memories → user prefs):\n${contextPack}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
   const result = streamText({
     model: getChatModel(modelId),
-    system: `${STUDYFLOW_SYSTEM_PROMPT}\n\n${buildModeInstruction(mode)}`,
+    system,
     messages: await convertToModelMessages(messages),
     onFinish: async ({ text }) => {
       if (!conversationId || !isDatabaseConfigured() || !text.trim()) return;

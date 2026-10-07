@@ -12,7 +12,6 @@ const configByView: Record<
     placeholder: string;
     hint: string;
     chips?: string[];
-    showAttach?: boolean;
   }
 > = {
   notes: {
@@ -27,7 +26,6 @@ const configByView: Record<
     placeholder: "Ask for structural feedback or guiding questions...",
     hint: "Primary actions: Check logic · Build evidence · Add to outline. No essay generation.",
     chips: ["Check claim coverage"],
-    showAttach: false,
   },
   draft: {
     title: "Draft coach",
@@ -35,7 +33,6 @@ const configByView: Record<
     placeholder: "Ask for structural feedback or guiding questions...",
     hint: "Primary actions: Check logic · Build evidence · Add to outline. No essay generation.",
     chips: ["Check logic"],
-    showAttach: false,
   },
   brief: {
     mode: "Research",
@@ -75,10 +72,10 @@ export function AssignmentAiPanel({
       promptPlaceholder={cfg.placeholder}
       promptHint={cfg.hint}
       promptChips={cfg.chips}
-      showAttach={cfg.showAttach}
       live
       assignmentId={assignmentSlug}
       onClose={onClose}
+      acceptAskEvents={view !== "notes"}
       seedQuestions={
         view === "notes"
           ? [

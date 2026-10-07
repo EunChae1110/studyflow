@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { getClaimsWithEvidence } from "@/lib/db/queries";
+import { ClaimAiActions } from "@/components/assignment/claim-ai-actions";
 import { EvidenceCard } from "@/components/assignment/evidence-card";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -11,9 +12,12 @@ import { cn } from "@/lib/utils";
 async function ClaimEvidenceContent({ assignmentId }: { assignmentId: string }) {
   const claims = await getClaimsWithEvidence(assignmentId);
   const primary = claims[0] ?? null;
-  const evidence = primary?.evidence ?? [];
-  const verified = evidence.filter((e) => e.studentVerified).length;
-  const strength = evidence.length === 0 ? 0 : Math.round((verified / evidence.length) * 100);
+  const evidenceRows = primary?.evidence ?? [];
+  const verified = evidenceRows.filter((e) => e.studentVerified).length;
+  const strength =
+    evidenceRows.length === 0
+      ? 0
+      : Math.round((verified / evidenceRows.length) * 100);
 
   return (
     <div className="space-y-4">
@@ -26,7 +30,11 @@ async function ClaimEvidenceContent({ assignmentId }: { assignmentId: string }) 
           <Link href="../outline" className={cn(buttonVariants({ variant: "outline" }))}>
             Back to outline
           </Link>
-          <Button disabled={!primary}>Move to outline</Button>
+          {primary ? (
+            <Link href="../outline" className={cn(buttonVariants())}>
+              Open in outline
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -55,18 +63,20 @@ async function ClaimEvidenceContent({ assignmentId }: { assignmentId: string }) 
               <h3 className="text-base font-semibold">
                 Linked evidence{" "}
                 <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                  {evidence.length} item{evidence.length === 1 ? "" : "s"}
+                  {evidenceRows.length} item{evidenceRows.length === 1 ? "" : "s"}
                 </Badge>
               </h3>
 
-              {evidence.length === 0 ? (
+              {evidenceRows.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted">
-                  No evidence linked to this claim yet.
+                  No evidence linked to this claim yet. Find sources in Research, then attach them
+                  from Outline.
                 </p>
               ) : (
-                evidence.map((ev) => (
+                evidenceRows.map((ev) => (
                   <EvidenceCard
                     key={ev.id}
+                    evidenceId={ev.id}
                     source={ev.page ? `Source · ${ev.page}` : "Source"}
                     status={ev.studentVerified ? "Supports" : "Needs review"}
                     quote={ev.quote ?? ev.paraphrase ?? "—"}
@@ -86,12 +96,7 @@ async function ClaimEvidenceContent({ assignmentId }: { assignmentId: string }) 
                     Use the AI panel to check logic and find missing counterarguments — StudyFlow will
                     not write your essay.
                   </div>
-                  <Button variant="outline" size="sm" className="w-full justify-start">
-                    Check logic
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start">
-                    Find counterargument
-                  </Button>
+                  <ClaimAiActions claim={primary.statement} />
                 </CardContent>
               </Card>
 
@@ -103,7 +108,7 @@ async function ClaimEvidenceContent({ assignmentId }: { assignmentId: string }) 
                   <div className="flex items-center justify-between">
                     <span className="text-muted">Verified</span>
                     <span className="font-semibold">
-                      {verified} / {evidence.length}
+                      {verified} / {evidenceRows.length}
                     </span>
                   </div>
                   <Progress value={strength} className="h-1.5 bg-surface-muted" />
@@ -129,4 +134,3 @@ export default async function ClaimEvidenceMapPage({
     </Suspense>
   );
 }
-

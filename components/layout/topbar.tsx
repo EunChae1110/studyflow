@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Bot, Menu, Search } from "lucide-react";
+import { Bot, Menu } from "lucide-react";
 import { EMPTY_STUDENT_PROFILE } from "@/lib/constants";
 import type { StudentProfile } from "@/lib/types";
 import { LogoutButton } from "@/components/auth/logout-button";
@@ -63,11 +63,6 @@ export function Topbar({
       </nav>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <div className="hidden w-60 items-center gap-2 rounded-lg border border-border bg-surface-muted px-3 py-1.5 text-sm text-muted xl:flex">
-          <Search className="size-4" />
-          <span>Search workspace...</span>
-          <kbd className="ml-auto rounded border border-border bg-surface px-1.5 py-0.5 text-[10px]">⌘K</kbd>
-        </div>
         {onOpenAi ? (
           <Button
             variant="ghost"
@@ -80,10 +75,6 @@ export function Topbar({
           </Button>
         ) : null}
         <ThemeToggle />
-        <Button variant="ghost" size="icon-sm" className="relative text-muted">
-          <Bell className="size-4" />
-          <span className="absolute top-1 right-1 size-1.5 rounded-full bg-[var(--danger)]" />
-        </Button>
         <div className="grid size-8 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
           {initials}
         </div>

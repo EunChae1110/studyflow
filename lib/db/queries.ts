@@ -11,6 +11,7 @@ import {
   courses,
   evidence,
   notes,
+  memories,
   outlines,
   referencesTable,
   researchQuestions,
@@ -747,4 +748,107 @@ export async function listRecentMessages(conversationId: string, limit = 40) {
     .orderBy(desc(aiMessages.createdAt))
     .limit(limit)
     .then((rows) => rows.reverse());
+}
+
+
+export async function listConversationsForAssignment(params: {
+  userId: string;
+  assignmentId: string;
+  limit?: number;
+}) {
+  const db = getDb();
+  if (!db) return [];
+
+  const assignmentUuid = await resolveAssignmentId(params.assignmentId);
+  if (!assignmentUuid) return [];
+
+  const rows = await db
+    .select({
+      id: aiConversations.id,
+      title: aiConversations.title,
+      mode: aiConversations.mode,
+      updatedAt: aiConversations.updatedAt,
+      createdAt: aiConversations.createdAt,
+    })
+    .from(aiConversations)
+    .where(
+      and(
+        eq(aiConversations.userId, params.userId),
+        eq(aiConversations.assignmentId, assignmentUuid),
+      ),
+    )
+    .orderBy(desc(aiConversations.updatedAt))
+    .limit(params.limit ?? 30);
+
+  const result = [];
+  for (const row of rows) {
+    const [last] = await db
+      .select({ content: aiMessages.content, role: aiMessages.role })
+      .from(aiMessages)
+      .where(eq(aiMessages.conversationId, row.id))
+      .orderBy(desc(aiMessages.createdAt))
+      .limit(1);
+    result.push({
+      id: row.id,
+      title: row.title,
+      mode: row.mode,
+      updatedAt: row.updatedAt.toISOString(),
+      createdAt: row.createdAt.toISOString(),
+      preview: last?.content?.slice(0, 120) ?? null,
+    });
+  }
+  return result;
+}
+
+export async function getConversationForUser(params: {
+  userId: string;
+  conversationId: string;
+}) {
+  const db = getDb();
+  if (!db) return null;
+
+  const [conversation] = await db
+    .select()
+    .from(aiConversations)
+    .where(
+      and(
+        eq(aiConversations.id, params.conversationId),
+        eq(aiConversations.userId, params.userId),
+      ),
+    )
+    .limit(1);
+
+  if (!conversation) return null;
+
+  const messages = await listRecentMessages(conversation.id, 80);
+  return { conversation, messages };
+}
+
+export async function listMemoriesForScopes(params: {
+  userId: string;
+  courseId?: string | null;
+  assignmentId?: string | null;
+}) {
+  const db = getDb();
+  if (!db) return [];
+
+  const rows = await db
+    .select()
+    .from(memories)
+    .where(eq(memories.userId, params.userId))
+    .orderBy(desc(memories.updatedAt))
+    .limit(100);
+
+  return rows.filter((row) => {
+    if (row.scope === "user") return true;
+    if (row.scope === "course") {
+      return Boolean(params.courseId) && row.courseId === params.courseId;
+    }
+    if (row.scope === "assignment") {
+      return (
+        Boolean(params.assignmentId) && row.assignmentId === params.assignmentId
+      );
+    }
+    return false;
+  });
 }

@@ -42,7 +42,13 @@ async function ResearchWorkspace({ assignmentId }: { assignmentId: string }) {
             ))
           )}
         </div>
-        <Button variant="outline" size="sm" className="mt-4 w-full" disabled>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4 w-full"
+          disabled
+          title="Manual research questions coming next — use AI Research mode for now"
+        >
           + Add question
         </Button>
         <p className="mt-3 text-[11px] leading-4 text-muted">

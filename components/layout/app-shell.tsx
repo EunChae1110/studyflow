@@ -71,6 +71,12 @@ export function AppShell({
     setMobileAiOpen(true);
   }, []);
 
+  React.useEffect(() => {
+    const handler = () => openAi();
+    window.addEventListener("studyflow:open-ai", handler);
+    return () => window.removeEventListener("studyflow:open-ai", handler);
+  }, [openAi]);
+
   const closeDesktopAi = React.useCallback(() => setDesktopAiOpen(false), []);
   const closeMobileAi = React.useCallback(() => setMobileAiOpen(false), []);
 

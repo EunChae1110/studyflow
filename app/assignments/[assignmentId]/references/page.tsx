@@ -1,8 +1,9 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { ReferencesTable } from "@/components/research/references-table";
 import { getReferences } from "@/lib/db/queries";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 async function ReferencesContent({ assignmentId }: { assignmentId: string }) {
   const references = await getReferences(assignmentId);
@@ -36,10 +38,12 @@ async function ReferencesContent({ assignmentId }: { assignmentId: string }) {
               <SelectItem value="ieee">IEEE</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm">
-            Export .bib
-          </Button>
-          <Button size="sm">+ Add source</Button>
+          <Link
+            href="../research"
+            className={cn(buttonVariants({ size: "sm" }))}
+          >
+            + Add source
+          </Link>
         </div>
       </div>
 
