@@ -1,4 +1,7 @@
 import "server-only";
+import path from "path";
+import { createRequire } from "module";
+import { pathToFileURL } from "url";
 import {
   GUIDELINE_ALLOWED_EXT,
   GUIDELINE_ALLOWED_MIME,
@@ -55,6 +58,66 @@ function truncate(text: string): string {
   );
 }
 
+/**
+ * pdf-parse v2 uses pdfjs-dist. Under Next/Turbopack, the default relative
+ * worker resolves to `.next/dev/server/chunks/pdf.worker.mjs` and throws
+ * "Setting up fake worker failed". Pin an absolute/data-url worker once.
+ */
+function isStableWorkerSrc(src: string | undefined): boolean {
+  if (!src) return false;
+  // data: URLs and absolute file paths survive Turbopack chunk remapping.
+  return (
+    src.startsWith("data:") ||
+    src.startsWith("file:") ||
+    path.isAbsolute(src)
+  );
+}
+
+async function ensurePdfWorker(
+  PDFParse: { setWorker: (workerSrc?: string) => string },
+): Promise<void> {
+  try {
+    if (isStableWorkerSrc(PDFParse.setWorker())) return;
+  } catch {
+    // continue and set explicitly
+  }
+
+  try {
+    const worker = await import("pdf-parse/worker");
+    if (typeof worker.getData === "function") {
+      PDFParse.setWorker(worker.getData());
+      return;
+    }
+    if (typeof worker.getPath === "function") {
+      const workerPath = worker.getPath();
+      PDFParse.setWorker(
+        path.isAbsolute(workerPath)
+          ? pathToFileURL(workerPath).href
+          : workerPath,
+      );
+      return;
+    }
+  } catch {
+    // fall through to filesystem path
+  }
+
+  const require = createRequire(path.join(process.cwd(), "package.json"));
+  const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+  PDFParse.setWorker(pathToFileURL(workerPath).href);
+}
+
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  const { PDFParse } = await import("pdf-parse");
+  await ensurePdfWorker(PDFParse);
+  const parser = new PDFParse({ data: new Uint8Array(buffer) });
+  try {
+    const result = await parser.getText();
+    return result.text ?? "";
+  } finally {
+    await parser.destroy().catch(() => undefined);
+  }
+}
+
 export async function extractGuidelineText(
   buffer: Buffer,
   mimeType: string,
@@ -64,21 +127,14 @@ export async function extractGuidelineText(
 
   try {
     if (mimeType === "application/pdf" || ext === ".pdf") {
-      const { PDFParse } = await import("pdf-parse");
-      const parser = new PDFParse({ data: buffer });
-      try {
-        const result = await parser.getText();
-        const text = truncate(result.text ?? "");
-        if (!text) {
-          return {
-            text: "",
-            error: "PDF had no extractable text (may be scanned/image-only).",
-          };
-        }
-        return { text };
-      } finally {
-        await parser.destroy().catch(() => undefined);
+      const text = truncate(await extractPdfText(buffer));
+      if (!text) {
+        return {
+          text: "",
+          error: "PDF had no extractable text (may be scanned/image-only).",
+        };
       }
+      return { text };
     }
 
     if (
