@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { LoaderCircle } from "lucide-react";
 import { AssistantAnswer, UserBubble } from "@/components/ai/chat";
 import { PromptBar } from "@/components/ai/prompt-bar";
 import { ThinkingBlock } from "@/components/ai/thinking-block";
@@ -20,7 +19,7 @@ type StudyflowChatProps = {
   assignmentId?: string;
 };
 
-type MessagePart = { type: string; text?: string };
+type MessagePart = { type: string; text?: string; state?: string };
 
 function messageText(message: { parts?: MessagePart[] }): string {
   return (message.parts ?? [])
@@ -39,6 +38,50 @@ function messageReasoning(message: { parts?: MessagePart[] }): string {
     .map((part) => part.text as string)
     .join("\n")
     .trim();
+}
+
+function useElapsedSeconds(active: boolean): { live: number; finished: number } {
+  const [live, setLive] = React.useState(0);
+  const [finished, setFinished] = React.useState(0);
+  const startedAtRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    if (!active) {
+      if (startedAtRef.current != null) {
+        const total = Math.max(
+          1,
+          Math.floor((Date.now() - startedAtRef.current) / 1000),
+        );
+        setFinished(total);
+        setLive(total);
+      }
+      startedAtRef.current = null;
+      return;
+    }
+
+    if (startedAtRef.current == null) {
+      startedAtRef.current = Date.now();
+      setLive(0);
+    }
+
+    const tick = () => {
+      const start = startedAtRef.current ?? Date.now();
+      setLive(Math.max(0, Math.floor((Date.now() - start) / 1000)));
+    };
+
+    tick();
+    const id = window.setInterval(tick, 250);
+    return () => window.clearInterval(id);
+  }, [active]);
+
+  return { live, finished };
+}
+
+function formatElapsed(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s.toString().padStart(2, "0")}s`;
 }
 
 export function StudyflowChat({
@@ -78,6 +121,9 @@ export function StudyflowChat({
   const lastMessage = messages[messages.length - 1];
   const waitingForFirstToken =
     isStreaming && (!lastMessage || lastMessage.role === "user");
+  const elapsed = useElapsedSeconds(isStreaming);
+  const elapsedLive = elapsed.live;
+  const elapsedFinished = elapsed.finished;
 
   const handleSend = React.useCallback(
     async (text: string) => {
@@ -123,7 +169,8 @@ export function StudyflowChat({
           const text = messageText(message);
           const reasoning = messageReasoning(message);
           const isLast = message.id === lastMessage?.id;
-          const streamingThis = isStreaming && isLast && message.role === "assistant";
+          const streamingThis =
+            isStreaming && isLast && message.role === "assistant";
 
           if (message.role === "user") {
             return (
@@ -134,21 +181,34 @@ export function StudyflowChat({
           }
 
           if (message.role === "assistant") {
+            // Honest progress: show while waiting for answer tokens when no
+            // real reasoning yet; keep after finish only if reasoning exists.
+            const showProgressOnly =
+              streamingThis && !reasoning && !text.trim();
+            const showReasoningBlock = Boolean(reasoning) || showProgressOnly;
+            const progressTitle = text.trim()
+              ? "Generating…"
+              : reasoning
+                ? "Thinking…"
+                : "Thinking…";
+
             return (
               <div key={message.id} className="space-y-2">
-                {reasoning ? (
+                {showReasoningBlock ? (
                   <ThinkingBlock
                     state={streamingThis ? "active" : "done"}
-                    title={streamingThis ? "Thinking..." : "Thought process"}
+                    title={
+                      streamingThis
+                        ? progressTitle
+                        : reasoning
+                          ? `Thought for ${formatElapsed(elapsedFinished || elapsedLive || 1)}`
+                          : "Thought process"
+                    }
+                    subtitle={
+                      streamingThis ? formatElapsed(elapsedLive) : undefined
+                    }
                     defaultOpen={streamingThis}
-                    steps={reasoning
-                      .split("\n")
-                      .map((line) => line.trim())
-                      .filter(Boolean)
-                      .map((line) => ({
-                        text: line,
-                        status: streamingThis ? ("active" as const) : ("done" as const),
-                      }))}
+                    reasoning={reasoning}
                   />
                 ) : null}
                 {text ? (
@@ -156,11 +216,6 @@ export function StudyflowChat({
                     markdown={text}
                     onReply={streamingThis ? undefined : handleReply}
                   />
-                ) : streamingThis ? (
-                  <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-muted">
-                    <LoaderCircle className="size-3.5 animate-spin" />
-                    Generating response…
-                  </div>
                 ) : null}
               </div>
             );
@@ -170,10 +225,12 @@ export function StudyflowChat({
         })}
 
         {waitingForFirstToken ? (
-          <div className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs text-muted">
-            <LoaderCircle className="size-3.5 animate-spin" />
-            Generating response…
-          </div>
+          <ThinkingBlock
+            state="active"
+            title="Thinking…"
+            subtitle={formatElapsed(elapsedLive)}
+            defaultOpen
+          />
         ) : null}
 
         {error ? (

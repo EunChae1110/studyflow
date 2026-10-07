@@ -87,6 +87,9 @@ export async function POST(req: Request) {
     }
   }
 
+  // Prefer mid-station chat completions (most 中轉站 expose /v1/chat/completions).
+  // Reasoning parts are forwarded when the upstream model emits them; UI also
+  // shows an honest timer while waiting even if no reasoning tokens arrive.
   const result = streamText({
     model: getChatModel(modelId),
     system: `${STUDYFLOW_SYSTEM_PROMPT}\n\n${buildModeInstruction(mode)}`,
@@ -106,6 +109,7 @@ export async function POST(req: Request) {
   });
 
   return result.toUIMessageStreamResponse({
+    sendReasoning: true,
     headers: {
       "x-model-id": modelId,
       ...(conversationId ? { "x-conversation-id": conversationId } : {}),

@@ -40,5 +40,6 @@ export function getChatModel(modelId?: string | null): LanguageModel {
     baseURL,
   });
 
-  return openai(resolveModelId(modelId));
+  // Mid-stations (中轉站) almost always expose chat completions, not Responses.
+  return openai.chat(resolveModelId(modelId));
 }
