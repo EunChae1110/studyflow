@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Filter, Search, ShieldCheck } from "lucide-react";
 import { researchQuestions, researchSources } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default function AssignmentResearchPage() {
   const selected = researchSources[0];
@@ -123,9 +124,12 @@ export default function AssignmentResearchPage() {
           <Button size="sm" variant="outline">
             Save evidence
           </Button>
-          <Button size="sm" variant="secondary" asChild>
-            <Link href="../claim-evidence">Map claim</Link>
-          </Button>
+          <Link
+            href="../claim-evidence"
+            className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+          >
+            Map claim
+          </Link>
         </div>
 
         <div className="mt-4">

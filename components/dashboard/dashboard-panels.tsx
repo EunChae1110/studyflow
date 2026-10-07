@@ -2,9 +2,10 @@ import Link from "next/link";
 import { ArrowRight, BookOpen, LibraryBig } from "lucide-react";
 import { assignment, deadlines, researchSources } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 export function ContinueWorkingCard() {
   return (
@@ -35,15 +36,19 @@ export function ContinueWorkingCard() {
           Current task: <span className="font-medium text-foreground">Verify 2 research sources</span> · Next: Verify evidence
         </p>
         <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-          <Button asChild>
-            <Link href={`/assignments/${assignment.id}/brief`}>
-              Continue assignment
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`/assignments/${assignment.id}/brief`}>Open details</Link>
-          </Button>
+          <Link
+            href={`/assignments/${assignment.id}/brief`}
+            className={cn(buttonVariants(), "inline-flex items-center gap-1.5")}
+          >
+            Continue assignment
+            <ArrowRight className="size-4" />
+          </Link>
+          <Link
+            href={`/assignments/${assignment.id}/brief`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Open details
+          </Link>
         </div>
       </CardContent>
     </Card>
@@ -97,9 +102,9 @@ export function DashboardSplitPanels() {
       <Card className="border-border bg-surface shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Recent sources</CardTitle>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/research-library">Library</Link>
-          </Button>
+          <Link href="/research-library" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+            Library
+          </Link>
         </CardHeader>
         <CardContent className="space-y-2">
           {researchSources.map((source) => (

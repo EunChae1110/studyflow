@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 export default function AssignmentOutlinePage() {
   return (
@@ -14,9 +15,9 @@ export default function AssignmentOutlinePage() {
           <p className="text-sm text-muted">Build claims, attach evidence, then write explanations yourself.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="../claim-evidence">Claim–evidence map</Link>
-          </Button>
+          <Link href="../claim-evidence" className={cn(buttonVariants({ variant: "outline" }))}>
+            Claim–evidence map
+          </Link>
           <Button>Save outline</Button>
         </div>
       </div>

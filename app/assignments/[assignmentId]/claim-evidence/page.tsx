@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 export default function ClaimEvidenceMapPage() {
   return (
@@ -13,9 +14,9 @@ export default function ClaimEvidenceMapPage() {
           <p className="text-sm text-muted">Link each claim to verified sources before drafting.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="../outline">Back to outline</Link>
-          </Button>
+          <Link href="../outline" className={cn(buttonVariants({ variant: "outline" }))}>
+            Back to outline
+          </Link>
           <Button>Move to outline</Button>
         </div>
       </div>

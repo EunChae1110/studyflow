@@ -1,12 +1,9 @@
 "use client";
 
-import * as React from "react";
 import {
-  ColumnDef,
   flexRender,
-  getCoreRowModel,
-  useReactTable,
 } from "@tanstack/react-table";
+import { getCoreRowModel, type LegacyColumnDef, useLegacyTable } from "@tanstack/react-table/legacy";
 import { references } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,11 +18,11 @@ import {
 
 type ReferenceRow = (typeof references)[number];
 
-const columns: ColumnDef<ReferenceRow>[] = [
+const columns: LegacyColumnDef<ReferenceRow, unknown>[] = [
   {
     header: "Source",
-    accessorFn: (row) => row.source,
-    cell: ({ row }) => (
+    accessorFn: (row: ReferenceRow) => row.source,
+    cell: ({ row }: { row: { original: ReferenceRow } }) => (
       <div>
         <p className="font-medium">{row.original.source}</p>
         <p className="text-xs text-muted">{row.original.title}</p>
@@ -35,7 +32,7 @@ const columns: ColumnDef<ReferenceRow>[] = [
   {
     header: "Type",
     accessorKey: "type",
-    cell: ({ row }) => <Badge variant="secondary">{row.original.type}</Badge>,
+    cell: ({ row }: { row: { original: ReferenceRow } }) => <Badge variant="secondary">{row.original.type}</Badge>,
   },
   {
     header: "Year",
@@ -44,12 +41,12 @@ const columns: ColumnDef<ReferenceRow>[] = [
   {
     header: "DOI / ID",
     accessorKey: "doi",
-    cell: ({ row }) => <span className="text-xs">{row.original.doi}</span>,
+    cell: ({ row }: { row: { original: ReferenceRow } }) => <span className="text-xs">{row.original.doi}</span>,
   },
   {
     header: "Status",
     accessorKey: "status",
-    cell: ({ row }) => {
+    cell: ({ row }: { row: { original: ReferenceRow } }) => {
       const status = row.original.status;
       const className =
         status === "Verified"
@@ -66,7 +63,7 @@ const columns: ColumnDef<ReferenceRow>[] = [
   {
     id: "action",
     header: "",
-    cell: ({ row }) => (
+    cell: ({ row }: { row: { original: ReferenceRow } }) => (
       <Button size="sm" variant={row.original.status === "Incomplete" ? "secondary" : "ghost"}>
         {row.original.status === "Incomplete" ? "Fix metadata" : "Edit"}
       </Button>
@@ -75,8 +72,8 @@ const columns: ColumnDef<ReferenceRow>[] = [
 ];
 
 export function ReferencesTable() {
-  const table = useReactTable({
-    data: references,
+  const table = useLegacyTable({
+    data: references as ReferenceRow[],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });

@@ -2,9 +2,10 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock3 } from "lucide-react";
 import { assignment } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 export default function AssignmentsPage() {
   return (
@@ -45,12 +46,13 @@ export default function AssignmentsPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button asChild>
-              <Link href={`/assignments/${assignment.id}/brief`}>
-                Open workspace
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
+            <Link
+              href={`/assignments/${assignment.id}/brief`}
+              className={cn(buttonVariants(), "inline-flex items-center gap-1.5")}
+            >
+              Open workspace
+              <ArrowRight className="size-4" />
+            </Link>
             <Button variant="outline">Review checklist</Button>
           </div>
         </CardContent>
