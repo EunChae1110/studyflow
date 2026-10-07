@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Shield } from "lucide-react";
+import { BuildRunner } from "@/components/assignment/build-runner";
 import { DeleteButton } from "@/components/workspace/delete-button";
 import type { AssignmentDetail } from "@/lib/types";
 import { typeLabel } from "@/lib/assignment-types";
@@ -32,7 +33,8 @@ export function AssignmentHeader({ assignment }: { assignment: AssignmentDetail 
             ) : null}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <BuildRunner assignmentSlug={assignment.slug} variant="header" />
           <DeleteButton
             kind="assignment"
             id={assignment.slug}

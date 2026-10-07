@@ -62,6 +62,18 @@ export function AssistantPanel({
     setMode(activeMode);
   }, [activeMode]);
 
+  React.useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ mode?: AssistantMode }>).detail;
+      const next = detail?.mode;
+      if (next === "Notes-only" || next === "Research" || next === "Outline") {
+        setMode(next);
+      }
+    };
+    window.addEventListener("studyflow:set-mode", handler);
+    return () => window.removeEventListener("studyflow:set-mode", handler);
+  }, []);
+
   const copy = MODE_COPY[mode];
   const resolvedPlaceholder =
     mode === activeMode ? promptPlaceholder || copy.placeholder : copy.placeholder;

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { BuildRunner } from "@/components/assignment/build-runner";
 import { GuidelineUploadCard } from "@/components/assignment/guideline-upload";
 
 /** Shared brief workspace body — used by assignment Brief page and landing preview. */
@@ -135,6 +136,10 @@ export function BriefPanels({
               assignmentSlug={assignment.slug}
               guidelines={assignment.guidelines ?? []}
             />
+          ) : null}
+
+          {showAskAi ? (
+            <BuildRunner assignmentSlug={assignment.slug} variant="panel" />
           ) : null}
 
           <Card className="border-border bg-surface">
