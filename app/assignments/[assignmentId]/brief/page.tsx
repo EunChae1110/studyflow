@@ -2,10 +2,19 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { BriefPanels } from "@/components/assignment/brief-panels";
 import { getAssignmentBySlug } from "@/lib/db/queries";
+import { recomputeAssignmentProgress } from "@/lib/workspace/progress";
 
 async function BriefContent({ assignmentId }: { assignmentId: string }) {
-  const assignment = await getAssignmentBySlug(assignmentId);
+  let assignment = await getAssignmentBySlug(assignmentId);
   if (!assignment) notFound();
+
+  // Catch up progress for assignments that already had guidelines/brief
+  // before auto-recompute existed (never decreases).
+  const next = await recomputeAssignmentProgress(assignment.id);
+  if (typeof next === "number" && next !== assignment.progress) {
+    assignment = (await getAssignmentBySlug(assignmentId)) ?? assignment;
+  }
+
   return <BriefPanels assignment={assignment} />;
 }
 

@@ -352,6 +352,12 @@ export async function insertResearchSource(params: {
         })
         .where(eq(researchSources.id, dup.id))
         .returning();
+      if (assignmentUuid) {
+        const { recomputeAssignmentProgress } = await import(
+          "@/lib/workspace/progress"
+        );
+        await recomputeAssignmentProgress(assignmentUuid);
+      }
       return updated ? mapSource(updated) : mapSource(dup);
     }
   }
@@ -381,6 +387,13 @@ export async function insertResearchSource(params: {
       kind: "external-research",
     })
     .returning();
+
+  if (created && assignmentUuid) {
+    const { recomputeAssignmentProgress } = await import(
+      "@/lib/workspace/progress"
+    );
+    await recomputeAssignmentProgress(assignmentUuid);
+  }
 
   return created ? mapSource(created) : null;
 }

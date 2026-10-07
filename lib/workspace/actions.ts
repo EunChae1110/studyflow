@@ -15,6 +15,10 @@ import {
   defaultNextActionForType,
   parseAssignmentType,
 } from "@/lib/assignment-types";
+import {
+  ensureAssignmentProgressAtLeast,
+  recomputeAssignmentProgress,
+} from "@/lib/workspace/progress";
 
 export type WorkspaceActionState = {
   ok: boolean;
@@ -257,6 +261,8 @@ export async function createAssignmentAction(
     }
   }
 
+  await recomputeAssignmentProgress(created.id);
+
   revalidatePath("/assignments");
   revalidatePath("/dashboard");
   revalidatePath("/calendar");
@@ -434,8 +440,12 @@ export async function addClaimAction(
     });
   }
 
+  await recomputeAssignmentProgress(assignment.id);
+
   revalidatePath(`/assignments/${assignment.slug}/outline`);
   revalidatePath(`/assignments/${assignment.slug}/claim-evidence`);
+  revalidatePath(`/assignments/${assignment.slug}/brief`);
+  revalidatePath("/assignments");
   return { ok: true };
 }
 
@@ -480,8 +490,12 @@ export async function saveDraftPlannerAction(
     sourceLabel: "draft-planner",
   });
 
+  await recomputeAssignmentProgress(assignment.id);
+
   revalidatePath(`/assignments/${assignment.slug}/draft`);
   revalidatePath(`/assignments/${assignment.slug}/notes`);
+  revalidatePath(`/assignments/${assignment.slug}/brief`);
+  revalidatePath("/assignments");
   return { ok: true };
 }
 
@@ -527,7 +541,11 @@ export async function saveOutlineStructureAction(
     });
   }
 
+  await recomputeAssignmentProgress(assignment.id);
+
   revalidatePath(`/assignments/${assignment.slug}/outline`);
+  revalidatePath(`/assignments/${assignment.slug}/brief`);
+  revalidatePath("/assignments");
   return { ok: true };
 }
 
@@ -564,8 +582,12 @@ export async function verifyEvidenceAction(
     .set({ studentVerified: true })
     .where(eq(evidence.id, evidenceId));
 
+  await recomputeAssignmentProgress(row.assignmentId);
+
   revalidatePath(`/assignments/${row.slug}/claim-evidence`);
   revalidatePath(`/assignments/${row.slug}/outline`);
+  revalidatePath(`/assignments/${row.slug}/brief`);
+  revalidatePath("/assignments");
   return { ok: true };
 }
 
@@ -605,11 +627,14 @@ export async function uploadGuidelineAction(
     return { ok: false, error: saved.error, fieldErrors: { guideline: [saved.error] } };
   }
 
+  await recomputeAssignmentProgress(assignmentId);
+
   if (assignmentSlug) {
     revalidatePath(`/assignments/${assignmentSlug}`);
     revalidatePath(`/assignments/${assignmentSlug}/brief`);
   }
   revalidatePath("/assignments");
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 
@@ -626,11 +651,16 @@ export async function deleteGuidelineAction(
   });
   if (!result.ok) return { ok: false, error: result.error };
 
+  if (result.assignmentId) {
+    await recomputeAssignmentProgress(result.assignmentId);
+  }
+
   const slug = assignmentSlug ?? result.assignmentSlug;
   if (slug) {
     revalidatePath(`/assignments/${slug}`);
     revalidatePath(`/assignments/${slug}/brief`);
   }
+  revalidatePath("/assignments");
   return { ok: true };
 }
 
@@ -705,6 +735,36 @@ export async function applyAiBriefSuggestionsAction(params: {
     .update(assignments)
     .set(patch as Partial<typeof assignments.$inferInsert>)
     .where(eq(assignments.id, row.id));
+
+  await recomputeAssignmentProgress(row.id);
+
+  revalidatePath(`/assignments/${row.slug}`);
+  revalidatePath(`/assignments/${row.slug}/brief`);
+  revalidatePath("/assignments");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function markUnderstandCompleteAction(
+  assignmentSlug: string,
+): Promise<WorkspaceActionState> {
+  if (!isDatabaseConfigured()) return dbUnavailable();
+  const db = getDb();
+  if (!db) return dbUnavailable();
+
+  const user = await requireUser();
+  const slug = assignmentSlug.trim();
+  if (!slug) return { ok: false, error: "Missing assignment." };
+
+  const [row] = await db
+    .select({ id: assignments.id, slug: assignments.slug })
+    .from(assignments)
+    .where(and(eq(assignments.slug, slug), eq(assignments.userId, user.id)))
+    .limit(1);
+  if (!row) return { ok: false, error: "Assignment not found." };
+
+  // Manually advance past Understand (≥20). Recompute may raise further.
+  await ensureAssignmentProgressAtLeast(row.id, 20);
 
   revalidatePath(`/assignments/${row.slug}`);
   revalidatePath(`/assignments/${row.slug}/brief`);

@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { WorkflowStepper } from "@/components/assignment/workflow-stepper";
 import { isWritingFocusedType, typeLabel } from "@/lib/assignment-types";
-import { applyAiBriefSuggestionsAction } from "@/lib/workspace/actions";
+import {
+  applyAiBriefSuggestionsAction,
+  markUnderstandCompleteAction,
+} from "@/lib/workspace/actions";
 import type { AssignmentDetail } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +31,8 @@ export function BriefPanels({
   const [filling, setFilling] = React.useState(false);
   const [fillError, setFillError] = React.useState<string | null>(null);
   const [fillNote, setFillNote] = React.useState<string | null>(null);
+  const [marking, setMarking] = React.useState(false);
+  const understandDone = assignment.progress >= 20;
 
   const askAi = () => {
     window.dispatchEvent(new CustomEvent("studyflow:open-ai"));
@@ -95,6 +100,24 @@ export function BriefPanels({
       setFillError("Could not reach AI fill.");
     } finally {
       setFilling(false);
+    }
+  };
+
+  const markUnderstand = async () => {
+    setFillError(null);
+    setMarking(true);
+    try {
+      const result = await markUnderstandCompleteAction(assignment.slug);
+      if (!result.ok) {
+        setFillError(result.error ?? "Could not update progress.");
+        return;
+      }
+      setFillNote("Understand marked complete — move on to gather materials.");
+      router.refresh();
+    } catch {
+      setFillError("Could not update progress.");
+    } finally {
+      setMarking(false);
     }
   };
 
@@ -177,25 +200,40 @@ export function BriefPanels({
           </Card>
 
           {showAskAi ? (
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="flex-1 bg-primary-soft text-primary hover:bg-primary-soft/80"
+                  onClick={askAi}
+                >
+                  <Sparkles className="size-4" />
+                  Ask AI to break down this brief
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  disabled={filling}
+                  onClick={fillFromGuideline}
+                >
+                  <Sparkles className="size-4" />
+                  {filling ? "Filling…" : "AI fill from guideline"}
+                </Button>
+              </div>
               <Button
                 type="button"
-                variant="secondary"
-                className="flex-1 bg-primary-soft text-primary hover:bg-primary-soft/80"
-                onClick={askAi}
+                variant={understandDone ? "outline" : "default"}
+                className="w-full sm:w-auto"
+                disabled={marking || understandDone}
+                onClick={markUnderstand}
               >
-                <Sparkles className="size-4" />
-                Ask AI to break down this brief
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                disabled={filling}
-                onClick={fillFromGuideline}
-              >
-                <Sparkles className="size-4" />
-                {filling ? "Filling…" : "AI fill from guideline"}
+                {understandDone
+                  ? "Understand complete"
+                  : marking
+                    ? "Updating…"
+                    : "Mark Understand complete → step 2"}
               </Button>
             </div>
           ) : null}
@@ -246,6 +284,16 @@ export function BriefPanels({
               {assignment.nextAction ? (
                 <p className="mt-3 text-xs text-muted">{assignment.nextAction}</p>
               ) : null}
+              {!understandDone ? (
+                <p className="mt-2 text-xs text-muted">
+                  Upload a guideline, fill the brief, or mark Understand complete
+                  to unlock step 2.
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
+                  Step 1 done — gather notes or research sources for step 3.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

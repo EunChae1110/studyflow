@@ -156,7 +156,7 @@ export async function getGuidelineTextsForAssignment(
 export async function deleteGuideline(params: {
   guidelineId: string;
   userId: string;
-}): Promise<{ ok: boolean; error?: string; assignmentSlug?: string }> {
+}): Promise<{ ok: boolean; error?: string; assignmentSlug?: string; assignmentId?: string }> {
   const db = getDb();
   if (!db) return { ok: false, error: "Database is not configured." };
 
@@ -185,7 +185,7 @@ export async function deleteGuideline(params: {
   const abs = path.join(process.cwd(), row.storagePath);
   await unlink(abs).catch(() => undefined);
 
-  return { ok: true, assignmentSlug: owned.slug };
+  return { ok: true, assignmentSlug: owned.slug, assignmentId: owned.id };
 }
 
 export async function removeAssignmentUploadDir(
