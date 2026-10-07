@@ -6,7 +6,6 @@ import { hasAiCredentials } from "@/lib/ai/provider";
 import { getAssignmentBySlug } from "@/lib/db/queries";
 
 export const maxDuration = 300;
-export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   const session = await getSession();
