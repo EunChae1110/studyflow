@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock3 } from "lucide-react";
+import { requireUser } from "@/lib/auth";
 import { listAssignments } from "@/lib/db/queries";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -19,7 +20,8 @@ function AssignmentsListFallback() {
 }
 
 async function AssignmentsList() {
-  const items = await listAssignments();
+  const user = await requireUser();
+  const items = await listAssignments(user.id);
 
   return (
     <>

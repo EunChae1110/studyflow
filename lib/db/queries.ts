@@ -76,10 +76,10 @@ function daysLeftLabel(days: number | null): string {
   return `${days} days`;
 }
 
-export async function getStudentProfile(): Promise<StudentProfile> {
+export async function getStudentProfile(userId: string): Promise<StudentProfile> {
   try {
     const db = requireDb();
-    const [user] = await db.select().from(users).orderBy(asc(users.createdAt)).limit(1);
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) {
       return { ...EMPTY_STUDENT_PROFILE };
     }
@@ -95,10 +95,10 @@ export async function getStudentProfile(): Promise<StudentProfile> {
   }
 }
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
+export async function getDashboardSummary(userId: string): Promise<DashboardSummary> {
   try {
     const db = requireDb();
-    const [user] = await db.select().from(users).orderBy(asc(users.createdAt)).limit(1);
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     const rows = await db
       .select({
         id: assignments.id,
@@ -111,6 +111,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
         nextAction: assignments.nextAction,
       })
       .from(assignments)
+      .where(eq(assignments.userId, userId))
       .orderBy(asc(assignments.dueAt))
       .limit(50);
 
@@ -137,12 +138,15 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   }
 }
 
-export async function listAssignments(): Promise<AssignmentListItem[]> {
-  const summary = await getDashboardSummary();
+export async function listAssignments(userId: string): Promise<AssignmentListItem[]> {
+  const summary = await getDashboardSummary(userId);
   return summary.assignments;
 }
 
-export async function getAssignmentBySlug(slug: string): Promise<AssignmentDetail | null> {
+export async function getAssignmentBySlug(
+  slug: string,
+  userId?: string,
+): Promise<AssignmentDetail | null> {
   const db = requireDb();
   const [row] = await db
     .select()
@@ -151,6 +155,7 @@ export async function getAssignmentBySlug(slug: string): Promise<AssignmentDetai
     .limit(1);
 
   if (!row) return null;
+  if (userId && row.userId !== userId) return null;
 
   return {
     id: row.id,
@@ -171,7 +176,7 @@ export async function getAssignmentBySlug(slug: string): Promise<AssignmentDetai
   };
 }
 
-export async function getDeadlines(limit = 20): Promise<DeadlineItem[]> {
+export async function getDeadlines(userId: string, limit = 20): Promise<DeadlineItem[]> {
   const db = requireDb();
   const rows = await db
     .select({
@@ -183,6 +188,7 @@ export async function getDeadlines(limit = 20): Promise<DeadlineItem[]> {
       progress: assignments.progress,
     })
     .from(assignments)
+    .where(eq(assignments.userId, userId))
     .orderBy(asc(assignments.dueAt))
     .limit(limit);
 
@@ -203,6 +209,7 @@ export async function getDeadlines(limit = 20): Promise<DeadlineItem[]> {
 }
 
 export async function getResearchSources(params?: {
+  userId?: string;
   assignmentSlug?: string;
   limit?: number;
 }): Promise<ResearchSourceItem[]> {
@@ -210,7 +217,10 @@ export async function getResearchSources(params?: {
   const limit = params?.limit ?? 50;
 
   if (params?.assignmentSlug) {
-    const assignment = await getAssignmentBySlug(params.assignmentSlug);
+    const assignment = await getAssignmentBySlug(
+      params.assignmentSlug,
+      params.userId,
+    );
     if (!assignment) return [];
     const rows = await db
       .select()
@@ -221,9 +231,12 @@ export async function getResearchSources(params?: {
     return rows.map(mapSource);
   }
 
+  if (!params?.userId) return [];
+
   const rows = await db
     .select()
     .from(researchSources)
+    .where(eq(researchSources.userId, params.userId))
     .orderBy(desc(researchSources.updatedAt))
     .limit(limit);
   return rows.map(mapSource);
@@ -349,28 +362,33 @@ export async function getOutline(assignmentSlug: string) {
   return row ?? null;
 }
 
-export async function getCoursesForUser(userId?: string) {
+export async function getCoursesForUser(userId: string) {
   try {
     const db = requireDb();
-    if (userId) {
-      return db.select().from(courses).where(eq(courses.userId, userId)).orderBy(asc(courses.name));
-    }
-    const [user] = await db.select().from(users).orderBy(asc(users.createdAt)).limit(1);
-    if (!user) return [];
-    return db.select().from(courses).where(eq(courses.userId, user.id)).orderBy(asc(courses.name));
+    return db
+      .select()
+      .from(courses)
+      .where(eq(courses.userId, userId))
+      .orderBy(asc(courses.name));
   } catch (error) {
     console.warn("[studyflow] getCoursesForUser failed:", error);
     return [];
   }
 }
 
-export async function getDashboardStats(): Promise<{
+export async function getDashboardStats(userId: string): Promise<{
   stats: DashboardStat[];
   weeklyProgress: WeeklyProgressPoint[];
 }> {
   const db = requireDb();
-  const assignmentRows = await db.select().from(assignments);
-  const sourceRows = await db.select().from(researchSources);
+  const assignmentRows = await db
+    .select()
+    .from(assignments)
+    .where(eq(assignments.userId, userId));
+  const sourceRows = await db
+    .select()
+    .from(researchSources)
+    .where(eq(researchSources.userId, userId));
 
   const activeCount = assignmentRows.filter((a) => a.status !== "submitted").length;
   const dueSoon = assignmentRows.filter((a) => {
@@ -415,27 +433,23 @@ export async function getDashboardStats(): Promise<{
   return { stats, weeklyProgress };
 }
 
-/** Minimal user for chat FK only — does not invent assignment/content. */
-export async function ensureChatUser(): Promise<{ userId: string } | null> {
+/** Resolve chat user from an authenticated session user id. */
+export async function resolveChatUser(
+  userId: string,
+): Promise<{ userId: string } | null> {
   const db = getDb();
   if (!db) return null;
 
   try {
-    let [user] = await db.select().from(users).orderBy(asc(users.createdAt)).limit(1);
-    if (!user) {
-      [user] = await db
-        .insert(users)
-        .values({
-          name: EMPTY_STUDENT_PROFILE.name,
-          email: "student@studyflow.local",
-          initials: EMPTY_STUDENT_PROFILE.initials,
-          tagline: EMPTY_STUDENT_PROFILE.tagline,
-        })
-        .returning();
-    }
+    const [user] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user) return null;
     return { userId: user.id };
   } catch (error) {
-    console.warn("[studyflow] ensureChatUser failed:", error);
+    console.warn("[studyflow] resolveChatUser failed:", error);
     return null;
   }
 }

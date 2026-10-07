@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { ContinueWorkingCard, DashboardSplitPanels } from "@/components/dashboard/dashboard-panels";
 import { StatsOverview } from "@/components/dashboard/stats-overview";
+import { requireUser } from "@/lib/auth";
 import {
   getDashboardStats,
   getDashboardSummary,
@@ -13,7 +14,8 @@ function SkeletonBlock({ className }: { className?: string }) {
 }
 
 async function DashboardHeader() {
-  const summary = await getDashboardSummary();
+  const user = await requireUser();
+  const summary = await getDashboardSummary(user.id);
 
   return (
     <section>
@@ -27,15 +29,17 @@ async function DashboardHeader() {
 }
 
 async function DashboardStatsSection() {
-  const { stats, weeklyProgress } = await getDashboardStats();
+  const user = await requireUser();
+  const { stats, weeklyProgress } = await getDashboardStats(user.id);
   return <StatsOverview stats={stats} weeklyProgress={weeklyProgress} />;
 }
 
 async function DashboardMainPanels() {
+  const user = await requireUser();
   const [summary, deadlines, sources] = await Promise.all([
-    getDashboardSummary(),
-    getDeadlines(5),
-    getResearchSources({ limit: 5 }),
+    getDashboardSummary(user.id),
+    getDeadlines(user.id, 5),
+    getResearchSources({ userId: user.id, limit: 5 }),
   ]);
 
   return (

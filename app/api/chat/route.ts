@@ -3,15 +3,16 @@ import {
   type UIMessage,
   streamText,
 } from "ai";
+import { getSession } from "@/lib/auth/session";
 import { resolveModelId } from "@/lib/ai/models";
 import { getChatModel, hasAiCredentials } from "@/lib/ai/provider";
 import { buildModeInstruction, STUDYFLOW_SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { isDatabaseConfigured } from "@/lib/db";
 import {
-  ensureChatUser,
   getOrCreateConversation,
   persistChatMessage,
   resolveAssignmentId,
+  resolveChatUser,
 } from "@/lib/db/queries";
 
 export const maxDuration = 60;
@@ -36,6 +37,11 @@ function textFromMessage(message: UIMessage | undefined): string {
 }
 
 export async function POST(req: Request) {
+  const session = await getSession();
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!hasAiCredentials()) {
     return Response.json(
       {
@@ -55,7 +61,7 @@ export async function POST(req: Request) {
 
   if (isDatabaseConfigured()) {
     try {
-      const chatUser = await ensureChatUser();
+      const chatUser = await resolveChatUser(session.userId);
       if (chatUser) {
         const assignmentUuid = await resolveAssignmentId(body.assignmentId);
         const conversation = await getOrCreateConversation({

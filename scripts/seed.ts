@@ -3,6 +3,7 @@ config({ path: ".env.local" });
 config({ path: ".env" });
 
 import { eq } from "drizzle-orm";
+import { hashPassword } from "../lib/auth/password";
 import { getDb } from "../lib/db";
 import {
   assignments,
@@ -21,17 +22,34 @@ async function main() {
     process.exit(1);
   }
 
-  let [user] = await db.select().from(users).limit(1);
+  const demoEmail = "alex@studyflow.local";
+  const demoPassword = "studyflow123";
+  const passwordHash = await hashPassword(demoPassword);
+
+  let [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, demoEmail))
+    .limit(1);
+
   if (!user) {
     [user] = await db
       .insert(users)
       .values({
         name: "Alex",
-        email: "alex@studyflow.local",
+        email: demoEmail,
+        passwordHash,
         initials: "AL",
         tagline: "Turn every assignment into a clear, evidence-based workflow.",
       })
       .returning();
+  } else if (!user.passwordHash) {
+    const [updated] = await db
+      .update(users)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, user.id))
+      .returning();
+    user = updated;
   }
 
   let [course] = await db
@@ -295,6 +313,9 @@ async function main() {
 
   console.log("Seeded demo user + assignment suite:", {
     userId: user.id,
+    email: demoEmail,
+    // password printed once for local demo login only
+    demoPassword,
     assignmentId: assignment.id,
     slug: assignment.slug,
   });

@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { AssignmentShellClient } from "@/components/assignment/assignment-shell-client";
+import { requireUser, toStudentProfile } from "@/lib/auth";
 import {
   getAssignmentBySlug,
   getCoursesForUser,
-  getStudentProfile,
 } from "@/lib/db/queries";
 
 type AssignmentLayoutProps = {
@@ -19,10 +19,10 @@ async function AssignmentShell({
   children: React.ReactNode;
   assignmentId: string;
 }) {
-  const [assignment, profile, courses] = await Promise.all([
-    getAssignmentBySlug(assignmentId),
-    getStudentProfile(),
-    getCoursesForUser(),
+  const user = await requireUser();
+  const [assignment, courses] = await Promise.all([
+    getAssignmentBySlug(assignmentId, user.id),
+    getCoursesForUser(user.id),
   ]);
 
   if (!assignment) notFound();
@@ -31,7 +31,7 @@ async function AssignmentShell({
     <AssignmentShellClient
       assignmentId={assignment.slug}
       assignment={assignment}
-      profile={profile}
+      profile={toStudentProfile(user)}
       courseLabels={courses.map((c) => c.name)}
     >
       {children}

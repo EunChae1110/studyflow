@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { Search, ShieldCheck } from "lucide-react";
+import { requireUser } from "@/lib/auth";
 import { getResearchSources } from "@/lib/db/queries";
 import { SourceKindLegend } from "@/components/research/source-kind-legend";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 async function SourceGrid() {
-  const sources = await getResearchSources({ limit: 50 });
+  const user = await requireUser();
+  const sources = await getResearchSources({ userId: user.id, limit: 50 });
 
   if (sources.length === 0) {
     return (

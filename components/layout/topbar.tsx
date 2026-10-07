@@ -3,6 +3,7 @@
 import { Bell, Bot, Menu, Search } from "lucide-react";
 import { EMPTY_STUDENT_PROFILE } from "@/lib/constants";
 import type { StudentProfile } from "@/lib/types";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -79,6 +80,7 @@ export function Topbar({
         <div className="grid size-8 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
           {initials}
         </div>
+        <LogoutButton compact className="text-muted" />
       </div>
     </header>
   );

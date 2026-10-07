@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import { CalendarDays, Clock4 } from "lucide-react";
+import { requireUser } from "@/lib/auth";
 import { getDeadlines } from "@/lib/db/queries";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 async function DeadlineList() {
-  const deadlines = await getDeadlines(30);
+  const user = await requireUser();
+  const deadlines = await getDeadlines(user.id, 30);
 
   return (
     <Card className="border-border bg-surface">

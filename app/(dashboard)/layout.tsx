@@ -1,16 +1,15 @@
 import { Suspense } from "react";
 import { DashboardShellClient } from "@/components/layout/dashboard-shell-client";
-import { getCoursesForUser, getStudentProfile } from "@/lib/db/queries";
+import { requireUser, toStudentProfile } from "@/lib/auth";
+import { getCoursesForUser } from "@/lib/db/queries";
 
 async function DashboardShell({ children }: { children: React.ReactNode }) {
-  const [profile, courses] = await Promise.all([
-    getStudentProfile(),
-    getCoursesForUser(),
-  ]);
+  const user = await requireUser();
+  const courses = await getCoursesForUser(user.id);
 
   return (
     <DashboardShellClient
-      profile={profile}
+      profile={toStudentProfile(user)}
       courseLabels={courses.map((c) => c.name)}
     >
       {children}
