@@ -2,6 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { isUserId } from "@/lib/auth/ids";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { loginSchema, signupSchema } from "@/lib/auth/schemas";
 import {
@@ -65,6 +66,10 @@ export async function loginAction(
     return { ok: false, error: "Invalid email or password." };
   }
 
+  if (!isUserId(user.id)) {
+    return { ok: false, error: "Account is missing a valid id. Please contact support." };
+  }
+
   await setSessionCookie({ userId: user.id, email: user.email });
   redirect("/dashboard");
 }
@@ -118,6 +123,10 @@ export async function signupAction(
       tagline: "Turn every assignment into a clear, evidence-based workflow.",
     })
     .returning({ id: users.id, email: users.email });
+
+  if (!created || !isUserId(created.id)) {
+    return { ok: false, error: "Could not create account. Please try again." };
+  }
 
   await setSessionCookie({ userId: created.id, email: created.email });
   redirect("/dashboard");

@@ -12,6 +12,7 @@ type AssignmentLayoutProps = {
   params: Promise<{ assignmentId: string }>;
 };
 
+/** Session-scoped shell — always resolve requireUser before DB reads. */
 async function AssignmentShell({
   children,
   assignmentId,

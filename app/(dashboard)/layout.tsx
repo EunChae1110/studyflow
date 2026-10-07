@@ -3,6 +3,7 @@ import { DashboardShellClient } from "@/components/layout/dashboard-shell-client
 import { requireUser, toStudentProfile } from "@/lib/auth";
 import { getCoursesForUser } from "@/lib/db/queries";
 
+/** Session-scoped shell — always resolve requireUser before DB reads. */
 async function DashboardShell({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const courses = await getCoursesForUser(user.id);

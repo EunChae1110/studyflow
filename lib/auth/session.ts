@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
+import { isUserId } from "@/lib/auth/ids";
 
 export const SESSION_COOKIE = "studyflow_session";
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 14; // 14 days
@@ -21,7 +22,15 @@ function getSecretKey() {
 }
 
 export async function createSessionToken(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ email: payload.email })
+  if (!isUserId(payload.userId)) {
+    throw new Error("Cannot mint session: userId must be a UUID");
+  }
+  const email = payload.email.trim().toLowerCase();
+  if (!email) {
+    throw new Error("Cannot mint session: email is required");
+  }
+
+  return new SignJWT({ email, userId: payload.userId })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.userId)
     .setIssuedAt()
@@ -34,10 +43,13 @@ export async function verifySessionToken(
 ): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getSecretKey());
-    const userId = typeof payload.sub === "string" ? payload.sub : null;
+    const fromSub = typeof payload.sub === "string" ? payload.sub : null;
+    const fromClaim =
+      typeof payload.userId === "string" ? payload.userId : null;
+    const userId = fromSub || fromClaim;
     const email = typeof payload.email === "string" ? payload.email : null;
-    if (!userId || !email) return null;
-    return { userId, email };
+    if (!isUserId(userId) || !email?.trim()) return null;
+    return { userId: userId.trim(), email: email.trim().toLowerCase() };
   } catch {
     return null;
   }

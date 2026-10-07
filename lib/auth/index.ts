@@ -1,6 +1,11 @@
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { getSession, type SessionPayload } from "@/lib/auth/session";
+import { isUserId } from "@/lib/auth/ids";
+import {
+  clearSessionCookie,
+  getSession,
+  type SessionPayload,
+} from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import type { StudentProfile } from "@/lib/types";
@@ -19,7 +24,9 @@ export async function getSessionPayload(): Promise<SessionPayload | null> {
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
   const session = await getSession();
-  if (!session) return null;
+  if (!session || !isUserId(session.userId)) {
+    return null;
+  }
 
   const db = getDb();
   if (!db) return null;
@@ -36,7 +43,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     .where(eq(users.id, session.userId))
     .limit(1);
 
-  if (!user) return null;
+  if (!user || !isUserId(user.id)) return null;
 
   return {
     id: user.id,
@@ -49,7 +56,15 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
 export async function requireUser(): Promise<AuthUser> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user || !isUserId(user.id)) {
+    // Drop corrupt / expired cookies so proxy + RSC agree on logged-out state.
+    try {
+      await clearSessionCookie();
+    } catch {
+      // ignore — redirect still sends the user to login
+    }
+    redirect("/login");
+  }
   return user;
 }
 

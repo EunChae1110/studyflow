@@ -1,5 +1,6 @@
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { EMPTY_STUDENT_PROFILE } from "@/lib/constants";
+import { isUserId } from "@/lib/auth/ids";
 import { getDb, isDatabaseConfigured } from "@/lib/db";
 import {
   aiConversations,
@@ -77,6 +78,9 @@ function daysLeftLabel(days: number | null): string {
 }
 
 export async function getStudentProfile(userId: string): Promise<StudentProfile> {
+  if (!isUserId(userId)) {
+    return { ...EMPTY_STUDENT_PROFILE };
+  }
   try {
     const db = requireDb();
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -96,6 +100,13 @@ export async function getStudentProfile(userId: string): Promise<StudentProfile>
 }
 
 export async function getDashboardSummary(userId: string): Promise<DashboardSummary> {
+  if (!isUserId(userId)) {
+    return {
+      studentName: EMPTY_STUDENT_PROFILE.name,
+      assignmentCount: 0,
+      assignments: [],
+    };
+  }
   try {
     const db = requireDb();
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -177,6 +188,7 @@ export async function getAssignmentBySlug(
 }
 
 export async function getDeadlines(userId: string, limit = 20): Promise<DeadlineItem[]> {
+  if (!isUserId(userId)) return [];
   const db = requireDb();
   const rows = await db
     .select({
@@ -489,9 +501,10 @@ export async function getOutline(assignmentSlug: string) {
 }
 
 export async function getCoursesForUser(userId: string) {
+  if (!isUserId(userId)) return [];
   try {
     const db = requireDb();
-    return db
+    return await db
       .select()
       .from(courses)
       .where(eq(courses.userId, userId))
@@ -506,6 +519,17 @@ export async function getDashboardStats(userId: string): Promise<{
   stats: DashboardStat[];
   weeklyProgress: WeeklyProgressPoint[];
 }> {
+  if (!isUserId(userId)) {
+    return {
+      stats: [
+        { label: "Active assignments", value: "0", meta: "—" },
+        { label: "Sources saved", value: "0", meta: "—" },
+        { label: "Claims mapped", value: "0", meta: "—" },
+        { label: "Study streak", value: "0", meta: "days" },
+      ],
+      weeklyProgress: [],
+    };
+  }
   const db = requireDb();
   const assignmentRows = await db
     .select()
