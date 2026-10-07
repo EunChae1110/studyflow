@@ -64,6 +64,7 @@ export function LandingAppPreview() {
           <AssignmentHeader assignment={landingAssignment} />
           <AssignmentTabs
             assignmentId={landingAssignment.slug}
+            assignmentType={landingAssignment.assignmentType}
             activeTab="brief"
             preview
           />

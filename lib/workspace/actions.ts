@@ -11,6 +11,10 @@ import {
   saveGuidelineFile,
   deleteGuideline,
 } from "@/lib/guidelines/store";
+import {
+  defaultNextActionForType,
+  parseAssignmentType,
+} from "@/lib/assignment-types";
 
 export type WorkspaceActionState = {
   ok: boolean;
@@ -94,14 +98,66 @@ export async function createAssignmentAction(
 
   const title = String(formData.get("title") ?? "").trim();
   const courseIdRaw = String(formData.get("courseId") ?? "").trim();
+  const assignmentType = parseAssignmentType(
+    String(formData.get("assignmentType") ?? "").trim(),
+  );
   const question = String(formData.get("question") ?? "").trim() || null;
   const wordLimit = String(formData.get("wordLimit") ?? "").trim() || null;
   const citationStyle =
     String(formData.get("citationStyle") ?? "").trim() || null;
   const dueRaw = String(formData.get("dueAt") ?? "").trim();
+  const requirementsRaw = String(formData.get("requirementsJson") ?? "").trim();
+  const rubricRaw = String(formData.get("rubricJson") ?? "").trim();
+  let requirements: Array<{ title: string; note: string; done: boolean }> = [];
+  let rubric: Array<{ criterion: string; weight: string }> = [];
+  if (requirementsRaw) {
+    try {
+      const parsed = JSON.parse(requirementsRaw) as unknown;
+      if (Array.isArray(parsed)) {
+        requirements = parsed
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const row = item as Record<string, unknown>;
+            const reqTitle = String(row.title ?? "").trim();
+            if (!reqTitle) return null;
+            return {
+              title: reqTitle.slice(0, 240),
+              note: String(row.note ?? "").trim().slice(0, 500),
+              done: Boolean(row.done),
+            };
+          })
+          .filter((x): x is { title: string; note: string; done: boolean } => Boolean(x))
+          .slice(0, 40);
+      }
+    } catch {
+      /* ignore bad JSON from AI fill */
+    }
+  }
+  if (rubricRaw) {
+    try {
+      const parsed = JSON.parse(rubricRaw) as unknown;
+      if (Array.isArray(parsed)) {
+        rubric = parsed
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const row = item as Record<string, unknown>;
+            const criterion = String(row.criterion ?? "").trim();
+            if (!criterion) return null;
+            return {
+              criterion: criterion.slice(0, 240),
+              weight: String(row.weight ?? "").trim().slice(0, 64) || "—",
+            };
+          })
+          .filter((x): x is { criterion: string; weight: string } => Boolean(x))
+          .slice(0, 40);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   const nextAction =
     String(formData.get("nextAction") ?? "").trim() ||
-    "Review the brief and gather evidence";
+    defaultNextActionForType(assignmentType);
 
   if (!title || title.length < 2) {
     return {
@@ -167,6 +223,7 @@ export async function createAssignmentAction(
       courseId,
       slug,
       title,
+      assignmentType,
       courseName,
       question,
       wordLimit,
@@ -177,8 +234,8 @@ export async function createAssignmentAction(
       status: "not_started",
       supportMode: "Learning support",
       nextAction,
-      requirements: [],
-      rubric: [],
+      requirements,
+      rubric,
     })
     .returning();
 
@@ -574,5 +631,84 @@ export async function deleteGuidelineAction(
     revalidatePath(`/assignments/${slug}`);
     revalidatePath(`/assignments/${slug}/brief`);
   }
+  return { ok: true };
+}
+
+
+export async function applyAiBriefSuggestionsAction(params: {
+  assignmentSlug: string;
+  title?: string | null;
+  question?: string | null;
+  assignmentType?: string | null;
+  wordLimit?: string | null;
+  citationStyle?: string | null;
+  nextAction?: string | null;
+  requirements?: Array<{ title: string; note: string; done?: boolean }>;
+  rubric?: Array<{ criterion: string; weight: string }>;
+}): Promise<WorkspaceActionState> {
+  if (!isDatabaseConfigured()) return dbUnavailable();
+  const db = getDb();
+  if (!db) return dbUnavailable();
+
+  const user = await requireUser();
+  const slug = params.assignmentSlug.trim();
+  if (!slug) return { ok: false, error: "Missing assignment." };
+
+  const [row] = await db
+    .select({ id: assignments.id, slug: assignments.slug })
+    .from(assignments)
+    .where(and(eq(assignments.slug, slug), eq(assignments.userId, user.id)))
+    .limit(1);
+  if (!row) return { ok: false, error: "Assignment not found." };
+
+  const patch: Record<string, unknown> = {
+    updatedAt: new Date(),
+  };
+
+  if (params.title?.trim()) patch.title = params.title.trim().slice(0, 255);
+  if (params.question !== undefined) {
+    patch.question = params.question?.trim() || null;
+  }
+  if (params.assignmentType) {
+    patch.assignmentType = parseAssignmentType(params.assignmentType);
+  }
+  if (params.wordLimit !== undefined) {
+    patch.wordLimit = params.wordLimit?.trim() || null;
+  }
+  if (params.citationStyle !== undefined) {
+    patch.citationStyle = params.citationStyle?.trim() || null;
+  }
+  if (params.nextAction?.trim()) {
+    patch.nextAction = params.nextAction.trim();
+  }
+  if (params.requirements) {
+    patch.requirements = params.requirements
+      .map((r) => ({
+        title: String(r.title ?? "").trim().slice(0, 240),
+        note: String(r.note ?? "").trim().slice(0, 500),
+        done: Boolean(r.done),
+      }))
+      .filter((r) => r.title)
+      .slice(0, 40);
+  }
+  if (params.rubric) {
+    patch.rubric = params.rubric
+      .map((r) => ({
+        criterion: String(r.criterion ?? "").trim().slice(0, 240),
+        weight: String(r.weight ?? "").trim().slice(0, 64) || "—",
+      }))
+      .filter((r) => r.criterion)
+      .slice(0, 40);
+  }
+
+  await db
+    .update(assignments)
+    .set(patch as Partial<typeof assignments.$inferInsert>)
+    .where(eq(assignments.id, row.id));
+
+  revalidatePath(`/assignments/${row.slug}`);
+  revalidatePath(`/assignments/${row.slug}/brief`);
+  revalidatePath("/assignments");
+  revalidatePath("/dashboard");
   return { ok: true };
 }

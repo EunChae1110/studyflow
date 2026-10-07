@@ -37,6 +37,7 @@ export const landingAssignment: AssignmentDetail = {
   slug: "database-normalisation-report",
   title: "Database Normalisation Report",
   course: "Database Systems",
+  assignmentType: "essay_report",
   wordLimit: "1,500 words",
   citationStyle: "Harvard",
   due: "Due in 4 days",

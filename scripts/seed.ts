@@ -102,6 +102,7 @@ async function main() {
         courseId: course.id,
         slug,
         title: "Database Normalisation Report",
+        assignmentType: "essay_report",
         courseName: "Database Systems",
         question:
           "Evaluate how database normalisation improves data integrity and reduces redundancy.",

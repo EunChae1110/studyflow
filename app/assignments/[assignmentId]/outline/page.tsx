@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { getClaimsWithEvidence, getOutline } from "@/lib/db/queries";
+import { requireUser } from "@/lib/auth";
+import { isWritingFocusedType } from "@/lib/assignment-types";
+import { getAssignmentBySlug, getClaimsWithEvidence, getOutline } from "@/lib/db/queries";
 import { AddClaimForm } from "@/components/workspace/add-claim-form";
 import { SaveOutlineButton } from "@/components/workspace/save-outline-button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 async function OutlineContent({ assignmentId }: { assignmentId: string }) {
+  const user = await requireUser();
+  const assignment = await getAssignmentBySlug(assignmentId, user.id);
+  const writing = isWritingFocusedType(assignment?.assignmentType);
   const [claims, outline] = await Promise.all([
     getClaimsWithEvidence(assignmentId),
     getOutline(assignmentId),
@@ -19,15 +24,25 @@ async function OutlineContent({ assignmentId }: { assignmentId: string }) {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Outline builder</h2>
+          <h2 className="text-xl font-semibold">
+            {writing ? "Outline builder" : "Plan builder"}
+          </h2>
           <p className="text-sm text-muted">
-            Build claims, attach evidence, then write explanations yourself.
+            {writing
+              ? "Build claims, attach evidence, then write explanations yourself."
+              : "Break the work into steps or sections. Claim–evidence is optional unless this assignment needs it."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="../claim-evidence" className={cn(buttonVariants({ variant: "outline" }))}>
-            Claim–evidence map
-          </Link>
+          {writing ? (
+            <Link href="../claim-evidence" className={cn(buttonVariants({ variant: "outline" }))}>
+              Claim–evidence map
+            </Link>
+          ) : (
+            <Link href="../claim-evidence" className={cn(buttonVariants({ variant: "ghost" }))}>
+              Optional: claim–evidence
+            </Link>
+          )}
           <SaveOutlineButton assignmentSlug={assignmentId} />
         </div>
       </div>

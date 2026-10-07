@@ -181,6 +181,7 @@ export async function getAssignmentBySlug(
     slug: row.slug,
     title: row.title,
     course: row.courseName ?? "Course",
+    assignmentType: row.assignmentType ?? "other",
     wordLimit: row.wordLimit,
     citationStyle: row.citationStyle,
     due: formatDue(row.dueAt, row.dueLabel),

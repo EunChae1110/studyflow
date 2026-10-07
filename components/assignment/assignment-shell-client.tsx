@@ -62,11 +62,12 @@ export function AssignmentShellClient({
         <AssignmentAiPanel
           view={tab as "brief" | "notes" | "research" | "outline" | "draft" | "references"}
           assignmentSlug={assignment.slug}
+          assignmentType={assignment.assignmentType}
         />
       }
     >
       <AssignmentHeader assignment={assignment} />
-      <AssignmentTabs assignmentId={assignmentId} activeTab={tab} />
+      <AssignmentTabs assignmentId={assignmentId} activeTab={tab} assignmentType={assignment.assignmentType} />
       {children}
     </AppShell>
   );

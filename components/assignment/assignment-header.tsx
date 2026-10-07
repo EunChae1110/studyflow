@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Shield } from "lucide-react";
 import { DeleteButton } from "@/components/workspace/delete-button";
 import type { AssignmentDetail } from "@/lib/types";
+import { typeLabel } from "@/lib/assignment-types";
 import { Badge } from "@/components/ui/badge";
 
 export function AssignmentHeader({ assignment }: { assignment: AssignmentDetail }) {
@@ -15,6 +16,7 @@ export function AssignmentHeader({ assignment }: { assignment: AssignmentDetail 
           <h1 className="text-2xl font-semibold">{assignment.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{assignment.course}</Badge>
+            <Badge variant="outline">{typeLabel(assignment.assignmentType)}</Badge>
             {assignment.wordLimit ? <Badge variant="outline">{assignment.wordLimit}</Badge> : null}
             {assignment.citationStyle ? (
               <Badge variant="outline">{assignment.citationStyle}</Badge>

@@ -1,6 +1,13 @@
 import type { WorkflowStep } from "@/lib/types";
+import {
+  deriveWorkflowStepsForType,
+  tabsForAssignmentType,
+  workflowLabelsForType,
+} from "@/lib/assignment-types";
 
-/** Static UI chrome — not content/mock data. */
+export { tabsForAssignmentType, deriveWorkflowStepsForType, workflowLabelsForType };
+
+/** Default tabs (writing-style). Prefer tabsForAssignmentType(assignmentType) at runtime. */
 export const assignmentTabs = [
   { label: "Brief", href: "brief" },
   { label: "Notes", href: "notes" },
@@ -24,7 +31,13 @@ export const workflowSteps: WorkflowStep[] = WORKFLOW_STEP_LABELS.map((label) =>
   state: "pending" as const,
 }));
 
-export function deriveWorkflowSteps(progress: number): WorkflowStep[] {
+export function deriveWorkflowSteps(
+  progress: number,
+  assignmentType?: string | null,
+): WorkflowStep[] {
+  if (assignmentType) {
+    return deriveWorkflowStepsForType(progress, assignmentType);
+  }
   const thresholds = [0, 20, 40, 60, 80];
   let currentIdx = 0;
   for (let i = thresholds.length - 1; i >= 0; i--) {

@@ -80,6 +80,8 @@ export const assignments = pgTable("assignments", {
   courseId: uuid("course_id").references(() => courses.id, { onDelete: "set null" }),
   slug: varchar("slug", { length: 160 }).notNull().unique(),
   title: varchar("title", { length: 255 }).notNull(),
+  /** essay_report | problem_set | lab | presentation | reading_response | coding | other */
+  assignmentType: varchar("assignment_type", { length: 64 }).default("other").notNull(),
   courseName: varchar("course_name", { length: 255 }),
   question: text("question"),
   wordLimit: varchar("word_limit", { length: 64 }),

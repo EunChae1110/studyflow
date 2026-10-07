@@ -106,6 +106,8 @@ export type AssignmentDetail = {
   slug: string;
   title: string;
   course: string;
+  /** essay_report | problem_set | lab | presentation | reading_response | coding | other */
+  assignmentType: string;
   wordLimit: string | null;
   citationStyle: string | null;
   due: string;

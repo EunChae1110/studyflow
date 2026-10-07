@@ -6,18 +6,23 @@ import { cn } from "@/lib/utils";
 export function WorkflowStepper({
   progress,
   steps,
+  assignmentType,
 }: {
   progress?: number;
   steps?: WorkflowStep[];
+  assignmentType?: string | null;
 }) {
   const resolved =
-    steps ?? (typeof progress === "number" ? deriveWorkflowSteps(progress) : defaultSteps);
+    steps ??
+    (typeof progress === "number"
+      ? deriveWorkflowSteps(progress, assignmentType)
+      : defaultSteps);
 
   return (
     <div className="mb-5 rounded-xl border border-border bg-surface px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
         {resolved.map((step, index) => (
-          <div key={step.label} className="flex items-center">
+          <div key={`${step.label}-${index}`} className="flex items-center">
             <div
               className={cn(
                 "flex items-center gap-2 text-xs text-muted",

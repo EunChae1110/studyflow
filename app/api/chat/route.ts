@@ -7,7 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { buildHybridContextPack } from "@/lib/ai/context-pack";
 import { resolveModelId } from "@/lib/ai/models";
 import { getChatModel, hasAiCredentials } from "@/lib/ai/provider";
-import { buildModeInstruction, STUDYFLOW_SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
+import { buildModeInstruction, buildTypeInstruction, STUDYFLOW_SYSTEM_PROMPT } from "@/lib/ai/system-prompt";
 import { isDatabaseConfigured } from "@/lib/db";
 import {
   getOrCreateConversation,
@@ -95,9 +95,13 @@ export async function POST(req: Request) {
     }
   }
 
+  const typeMatch = /Assignment type:\s*(\S+)/.exec(contextPack);
+  const assignmentTypeHint = typeMatch?.[1] ?? null;
+
   const system = [
     STUDYFLOW_SYSTEM_PROMPT,
     buildModeInstruction(mode),
+    buildTypeInstruction(assignmentTypeHint),
     contextPack
       ? `---\nHybrid memory context (assignment pack → course memories → user prefs):\n${contextPack}`
       : "",

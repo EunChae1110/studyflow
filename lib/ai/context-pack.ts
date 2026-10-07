@@ -131,6 +131,7 @@ export async function buildHybridContextPack(params: {
 
   sections.push("## Assignment context (working memory)");
   sections.push(`Title: ${assignment.title}`);
+  sections.push(`Assignment type: ${assignment.assignmentType ?? "other"}`);
   if (assignment.courseName) sections.push(`Course: ${assignment.courseName}`);
   if (assignment.question) sections.push(`Question: ${assignment.question}`);
   if (assignment.wordLimit) sections.push(`Word limit: ${assignment.wordLimit}`);
