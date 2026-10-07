@@ -105,11 +105,28 @@ export type BuildProduceSection = {
   body: string;
 };
 
+export type BuildProduceFile = {
+  /** Submission filename, e.g. TriangleChecker_STUDENTID.java */
+  filename: string;
+  /** Full file contents (text). */
+  content: string;
+  /** Optional mime; inferred from filename if omitted. */
+  mimeType?: string;
+  /** code | report | genai | evidence | source | other */
+  kind?: string;
+};
+
 export type BuildProduceResult = {
   title: string;
   format: string;
   sections: BuildProduceSection[];
   appendix?: string | null;
+  /** Real downloadable files for submission (java, report, genai log, tests…). */
+  files?: BuildProduceFile[];
+  /** Suggested zip name, e.g. SEHS2242_Name_STUDENTID.zip */
+  zipName?: string | null;
+  /** Detected / declared output language. */
+  outputLanguage?: string | null;
   /** Brief checklist titles this draft satisfies (exact match preferred). */
   satisfiedRequirementTitles?: string[];
   nextAction: string;

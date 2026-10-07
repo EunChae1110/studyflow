@@ -120,7 +120,14 @@ export const courseMaterials = pgTable("course_materials", {
   assignmentId: uuid("assignment_id")
     .notNull()
     .references(() => assignments.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
+  originalName: varchar("original_name", { length: 255 }),
+  storagePath: text("storage_path"),
+  mimeType: varchar("mime_type", { length: 128 }),
+  sizeBytes: integer("size_bytes"),
+  extractedText: text("extracted_text"),
+  extractError: text("extract_error"),
   pages: integer("pages"),
   status: varchar("status", { length: 64 }).default("Indexed").notNull(),
   ...timestamps,
@@ -143,6 +150,26 @@ export const assignmentGuidelines = pgTable("assignment_guidelines", {
   extractedText: text("extracted_text"),
   extractError: text("extract_error"),
   status: varchar("status", { length: 64 }).default("ready").notNull(),
+  ...timestamps,
+});
+
+
+export const assignmentDeliverables = pgTable("assignment_deliverables", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  assignmentId: uuid("assignment_id")
+    .notNull()
+    .references(() => assignments.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  originalName: varchar("original_name", { length: 255 }).notNull(),
+  storagePath: text("storage_path").notNull(),
+  mimeType: varchar("mime_type", { length: 128 }).notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  /** source | code | report | zip | other */
+  kind: varchar("kind", { length: 64 }).default("source").notNull(),
+  /** build batch id so re-runs can replace a set */
+  batchId: uuid("batch_id"),
   ...timestamps,
 });
 
@@ -283,6 +310,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   aiConversations: many(aiConversations),
   memories: many(memories),
   assignmentGuidelines: many(assignmentGuidelines),
+  assignmentDeliverables: many(assignmentDeliverables),
 }));
 
 export const coursesRelations = relations(courses, ({ one, many }) => ({
@@ -297,6 +325,7 @@ export const assignmentsRelations = relations(assignments, ({ one, many }) => ({
   notes: many(notes),
   courseMaterials: many(courseMaterials),
   guidelines: many(assignmentGuidelines),
+  deliverables: many(assignmentDeliverables),
   researchQuestions: many(researchQuestions),
   researchSources: many(researchSources),
   references: many(referencesTable),
@@ -314,6 +343,18 @@ export const assignmentGuidelinesRelations = relations(assignmentGuidelines, ({ 
   }),
   user: one(users, {
     fields: [assignmentGuidelines.userId],
+    references: [users.id],
+  }),
+}));
+
+
+export const assignmentDeliverablesRelations = relations(assignmentDeliverables, ({ one }) => ({
+  assignment: one(assignments, {
+    fields: [assignmentDeliverables.assignmentId],
+    references: [assignments.id],
+  }),
+  user: one(users, {
+    fields: [assignmentDeliverables.userId],
     references: [users.id],
   }),
 }));

@@ -9,7 +9,9 @@ export const BUILD_SYSTEM = `你是 StudyFlow Build orchestrator：要**實際�
 4. **Produce 步驟（僅此一步）必須寫出實際可編輯的交付物草稿**——按類型填滿章節正文／解題過程／程式 stub + README／lab 方法與結果骨架／簡報內容與講者備註等。這是 Build 的核心產出，不是 plan card。
 5. 不要捏造 DOI、假文獻或假數據；需要引用時標成「[需核實]」並提示學生核對來源。
 6. 只輸出 JSON（不要 markdown fence、不要解釋文字）。
-7. 語言跟 guideline／brief 走（港大學生常用繁中或英文）。
+7. 語言必須跟 guideline／brief：**guideline 係繁中就全部報告／說明用繁中**；英文就用英文。程式識別子可維持英文。
+8. Produce 必須同時產出可下載檔案清單 files[]（真實檔名 + 完整內容），唔可以只寫 Draft 文字。
+9. 若有上傳課程材料（Course Materials）：嚴格留在學習範圍——只用 guideline + 已上傳材料；唔好發明材料沒有嘅概念／API／公式當成交課內容。材料不足就喺報告註明「材料未覆蓋」。
 
 assignmentType 必須是：${ASSIGNMENT_TYPE_IDS.join(" | ")}
 `;
@@ -126,12 +128,17 @@ export function producePrompt(ctx: {
   title: string;
   writing: boolean;
   guidelineText: string;
+  materialsText: string;
+  hasMaterials: boolean;
   question: string | null;
   sections: Array<{ title: string; purpose: string; claimOrPoint?: string }>;
   researchQuestions: string[];
   requirements: Array<{ title: string; note: string; done: boolean }>;
+  outputLanguage: string;
+  languageInstruction: string;
+  studentId: string;
 }): string {
-  const typeHint = produceTypeHint(ctx.assignmentType);
+  const typeHint = produceTypeHint(ctx.assignmentType, ctx.studentId);
   const reqList =
     ctx.requirements
       .map(
@@ -140,23 +147,29 @@ export function producePrompt(ctx: {
       )
       .join("\n") || "(none)";
 
-  return `STEP: produce — WRITE THE ACTUAL DELIVERABLE DRAFT (not plan cards)
+  return `STEP: produce — WRITE REAL DOWNLOADABLE SUBMISSION FILES + DRAFT TEXT
 
 Assignment type: ${ctx.assignmentType} (${typeLabel(ctx.assignmentType)})
 Title: ${ctx.title}
 Brief: ${ctx.question ?? "(empty)"}
 Writing-focused: ${ctx.writing}
+Student ID placeholder for filenames: ${ctx.studentId}
+Declared outputLanguage: ${ctx.outputLanguage}
+${ctx.languageInstruction}
 
-Guideline (authoritative — follow closely):
+Guideline (authoritative — follow closely, including naming, language, and every submission item):
 ${ctx.guidelineText.slice(0, 20_000) || "(none — use brief + plan)"}
 
-Brief requirement checklist (mark which ones this draft satisfies):
+Course materials (學習範圍 — ${ctx.hasMaterials ? "MUST stay within these materials + guideline; do not invent beyond them" : "none uploaded; rely on guideline/brief only; flag gaps"}):
+${ctx.hasMaterials ? ctx.materialsText.slice(0, 18_000) : "(none)"}
+
+Brief requirement checklist (EVERY open item must be covered by a real file or report section):
 ${reqList}
 
 Research / gather questions:
 ${ctx.researchQuestions.map((q, i) => `${i + 1}. ${q}`).join("\n") || "(none)"}
 
-Plan sections to expand into the deliverable:
+Plan sections:
 ${ctx.sections
   .map(
     (s, i) =>
@@ -171,42 +184,50 @@ Return JSON:
 {
   "title": string,
   "format": "essay" | "problem_set" | "lab" | "coding" | "presentation" | "reading_response" | "other",
-  "sections": [{
-    "heading": string,
-    "body": string
+  "outputLanguage": "${ctx.outputLanguage}",
+  "zipName": string,
+  "sections": [{ "heading": string, "body": string }],
+  "files": [{
+    "filename": string,
+    "content": string,
+    "kind": "code" | "report" | "genai" | "evidence" | "source" | "other"
   }],
   "appendix": string | null,
   "satisfiedRequirementTitles": [string],
   "nextAction": string
 }
 
-規則：
-- **必須寫出完整可編輯草稿**：每個 section 的 body 要有實質內容（段落／解題步驟／程式碼／方法敘述／投影片要點+講者備註），不是一句 stub。
-- 嚴格跟 guideline 的要求、字數／題目數、格式、評分點對齊。
-- 引用標「[需核實]」；假 DOI／假數據禁止。
-- coding：sections 可為檔名（如 main.py、src/App.tsx），body 為可運行或接近可運行的 stub／核心實作；appendix 放 README 步驟。
-- presentation：每個 section = 一組投影片；body 用「## Slide N: …」＋要點＋「Speaker notes: …」。
-- problem_set：每題一個 section；body 含思路、步驟、最終答案（標明假設）。
-- lab：method／results／discussion 等填好可編輯骨架與示例填寫。
-- essay／reading_response：結構化章節，每段完整論證草稿（學生之後可改）。
-- satisfiedRequirementTitles：列出草稿**已實質覆蓋**的 checklist 標題（必須用上面清單的原標題字串；可多選）。只標真正寫到的項，不要全部亂勾。
-- nextAction：學生審閱／修改這份草稿的下一步。`;
+硬規則：
+- **files[] 必填**：每個要交嘅檔都要有完整 content（唔可以空、唔可以只寫「見 Draft」）。
+- 檔名跟 guideline（例如 coding：\`TriangleChecker_${ctx.studentId}.java\`、\`Report_${ctx.studentId}.md\`、\`GenAI_Usage_${ctx.studentId}.md\`、\`TestEvidence_${ctx.studentId}.md\`；zipName 如 \`SEHS2242_Name_${ctx.studentId}.zip\`）。
+- **報告／GenAI／測試說明必須用 ${ctx.outputLanguage}**（繁中就用繁體中文全文）。
+- coding：至少包含 (1) 主程式 .java／指定語言源碼 (2) 完整報告 .md（設計、UML／類別說明、複雜度、測試結果表）(3) GenAI 使用紀錄 .md（用咗咩、點用、邊段係 AI）(4) 測試用例與證據 .md（輸入／預期／實際／pass）。
+- PDF 會由系統從報告 .md 轉出；你仍要產出完整 Report_*.md。
+- sections：同步放 Draft 預覽用正文（可同 files 內容對應）。
+- satisfiedRequirementTitles：必須盡量列出 checklist **全部**已用檔案／報告實質覆蓋嘅原標題；缺一項就唔好聲稱完成。
+- 唔好假 DOI；測試結果可為合理示範，標明「Build 產生嘅示例證據，提交前請自行重跑核實」。
+- nextAction：提醒下載 ZIP／PDF 並核對學號檔名。`;
 }
 
-function produceTypeHint(assignmentType: string): string {
+function produceTypeHint(assignmentType: string, studentId: string): string {
   switch (assignmentType) {
     case "essay_report":
     case "reading_response":
-      return "Write structured draft sections with full paragraphs that argue claims from the plan. Match guideline length/tone if stated.";
+      return `Write full draft sections + files: Essay_${studentId}.md (complete prose). Match guideline language/length.`;
     case "problem_set":
-      return "For each question/problem: worked approach, key formulas, step-by-step reasoning, and a clear final answer. Flag assumptions.";
+      return `Per-question worked solutions in Solutions_${studentId}.md plus Draft sections.`;
     case "lab":
-      return "Fill method, materials, procedure, results placeholders (sample tables/notes if needed), and discussion skeleton grounded in the guideline.";
+      return `LabReport_${studentId}.md with method/results/discussion; include data tables.`;
     case "coding":
-      return "Produce code stubs / core modules matching the guideline deliverables, plus README setup & run steps in appendix.";
+      return `MUST emit ALL submission artifacts as files[]:
+1) Main source e.g. TriangleChecker_${studentId}.java (complete, compilable as far as guideline allows)
+2) Report_${studentId}.md — full report in guideline language (design, classes, testing, discussion)
+3) GenAI_Usage_${studentId}.md — GenAI usage declaration/record required by many HK poly guidelines
+4) TestEvidence_${studentId}.md — test cases with inputs, expected, actual, pass/fail
+zipName like SEHS2242_<Name>_${studentId}.zip covering all of the above.`;
     case "presentation":
-      return "Slide outline with bullet content and speaker notes for each block. Cover audience goal from guideline.";
+      return `Slides_${studentId}.md with slide bullets + speaker notes.`;
     default:
-      return "Infer the deliverable from the guideline and write a complete editable draft in sections.";
+      return `Infer every required submission file from the guideline and put each in files[] with full content.`;
   }
 }

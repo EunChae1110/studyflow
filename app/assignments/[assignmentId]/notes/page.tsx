@@ -1,52 +1,41 @@
 import { Suspense } from "react";
 import { StudyflowChat } from "@/components/ai/studyflow-chat";
+import { MaterialUploadPanel } from "@/components/assignment/material-upload";
 import { NotesAskButton } from "@/components/assignment/notes-ask-button";
-import { getCourseMaterials } from "@/lib/db/queries";
+import { requireUser } from "@/lib/auth";
+import { getAssignmentBySlug, getCourseMaterials } from "@/lib/db/queries";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
-async function NotesWorkspace({ assignmentId }: { assignmentId: string }) {
-  const materials = await getCourseMaterials(assignmentId);
+async function NotesWorkspace({ assignmentSlug }: { assignmentSlug: string }) {
+  const user = await requireUser();
+  const assignment = await getAssignmentBySlug(assignmentSlug, user.id);
+  const materials = await getCourseMaterials(assignmentSlug);
+
+  if (!assignment) {
+    return (
+      <p className="text-sm text-muted">Assignment not found.</p>
+    );
+  }
 
   return (
     <div className="grid min-h-[640px] overflow-hidden rounded-xl border border-border bg-surface lg:grid-cols-[260px_1fr]">
       <aside className="study-scroll border-b border-border bg-surface p-4 lg:border-r lg:border-b-0">
         <h3 className="mb-3 text-sm font-semibold">Course materials</h3>
-        <div className="space-y-1">
-          {materials.length === 0 ? (
-            <p className="px-1 text-xs text-muted">No materials uploaded yet.</p>
-          ) : (
-            materials.map((doc, index) => (
-              <div
-                key={doc.id}
-                className={`w-full rounded-lg px-3 py-2 text-left ${
-                  index === 0 ? "bg-primary-soft text-primary" : ""
-                }`}
-              >
-                <p className="text-sm font-medium">{doc.title}</p>
-                <p className="text-xs text-muted">
-                  {doc.pages != null ? `${doc.pages} pages · ` : ""}
-                  {doc.status}
-                </p>
-              </div>
-            ))
-          )}
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-4 w-full"
-          disabled
-          title="Material upload coming next"
-        >
-          + Upload material
-        </Button>
+        <MaterialUploadPanel
+          assignmentId={assignment.id}
+          assignmentSlug={assignment.slug}
+          materials={materials}
+        />
       </aside>
 
       <section className="flex min-h-0 flex-col bg-background">
         <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-3">
           <Badge className="bg-primary-soft text-primary">Notes-only</Badge>
-          <p className="text-xs text-muted">External sources disabled</p>
+          <p className="text-xs text-muted">
+            {materials.length > 0
+              ? "Grounded in your uploaded materials"
+              : "Upload materials to ground answers"}
+          </p>
           <div className="ml-auto flex flex-wrap gap-1">
             <NotesAskButton
               icon="lightbulb"
@@ -74,9 +63,9 @@ async function NotesWorkspace({ assignmentId }: { assignmentId: string }) {
         <StudyflowChat
           mode="Notes-only"
           placeholder="Ask about your lecture materials..."
-          hint="External sources disabled. Answers are grounded only in your course materials."
+          hint="External sources disabled. Answers are grounded only in your course materials + guideline."
           extraChips={["Explain this concept", "Quiz me"]}
-          assignmentId={assignmentId}
+          assignmentId={assignmentSlug}
           seedQuestions={[
             "Summarise the key definitions in my lecture notes",
             "What should I verify before using a claim from these notes?",
@@ -105,5 +94,5 @@ async function AssignmentNotesPageParams({
   params: Promise<{ assignmentId: string }>;
 }) {
   const { assignmentId } = await params;
-  return <NotesWorkspace assignmentId={assignmentId} />;
+  return <NotesWorkspace assignmentSlug={assignmentId} />;
 }

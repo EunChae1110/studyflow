@@ -1,10 +1,12 @@
 import { Suspense } from "react";
 import { FileText, Lock } from "lucide-react";
+import { DeliverableFilesCard } from "@/components/assignment/deliverable-files";
 import { DraftPlannerForm } from "@/components/assignment/draft-planner-form";
 import { requireUser } from "@/lib/auth";
 import { isWritingFocusedType } from "@/lib/assignment-types";
 import { BUILD_DELIVERABLE_SOURCE } from "@/lib/build/types";
 import { getAssignmentBySlug, getNotes } from "@/lib/db/queries";
+import { listDeliverablesForAssignment } from "@/lib/deliverables/store";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -18,18 +20,19 @@ async function DraftContent({
   const assignment = await getAssignmentBySlug(assignmentId, user.id);
   const writing = isWritingFocusedType(assignment?.assignmentType);
   const allNotes = await getNotes(assignmentId);
-  const deliverables = allNotes.filter(
+  const deliverables = assignment
+    ? await listDeliverablesForAssignment(assignment.id, user.id)
+    : [];
+  const draftNotes = allNotes.filter(
     (n) => n.sourceLabel === BUILD_DELIVERABLE_SOURCE,
   );
-  // Prefer section notes over the combined "Deliverable ·" rollup for display,
-  // but if only the rollup exists, show it.
-  const sectionNotes = deliverables.filter(
+  const sectionNotes = draftNotes.filter(
     (n) => !n.title.startsWith("Deliverable ·"),
   );
   const displayNotes =
     sectionNotes.length > 0
       ? sectionNotes
-      : deliverables.filter((n) => n.title.startsWith("Deliverable ·"));
+      : draftNotes.filter((n) => n.title.startsWith("Deliverable ·"));
 
   return (
     <div className="space-y-4">
@@ -38,22 +41,27 @@ async function DraftContent({
           {writing ? "Draft workspace" : "Work workspace"}
         </h2>
         <p className="text-sm text-muted">
-          {displayNotes.length > 0
+          {deliverables.length > 0 || displayNotes.length > 0
             ? writing
-              ? "Build wrote a draft from your guideline. Review, revise, and verify before submitting."
-              : "Build wrote a deliverable draft from your guideline. Review and complete anything still missing."
+              ? "Build wrote files and a draft from your guideline. Download, review, and revise before submitting."
+              : "Build wrote downloadable submission files from your guideline. Download the ZIP / PDF, then revise anything still missing."
             : writing
-              ? "Plan, verify, and check logic — or run Build to generate a draft from your guideline."
-              : "Plan your approach — or run Build to generate a deliverable draft from your guideline."}
+              ? "Plan, verify, and check logic — or run Build to generate files from your guideline."
+              : "Plan your approach — or run Build to generate downloadable files from your guideline."}
         </p>
       </div>
+
+      <DeliverableFilesCard
+        assignmentSlug={assignmentId}
+        deliverables={deliverables}
+      />
 
       {displayNotes.length > 0 ? (
         <Card className="border-primary/30 bg-surface">
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <FileText className="size-4 text-primary" />
-              Build deliverable
+              Build deliverable preview
             </CardTitle>
             <Badge className="bg-primary-soft text-primary">
               {displayNotes.length} section
@@ -87,18 +95,18 @@ async function DraftContent({
           <CardContent className="space-y-2 text-sm text-muted">
             <p className="rounded-lg border border-primary/25 bg-primary-soft p-3 text-primary">
               <Lock className="mr-1 inline size-3.5" />
-              {displayNotes.length > 0
-                ? "Build generated a starting draft — treat it as editable student work, not a final submission."
+              {deliverables.length > 0
+                ? "Download the ZIP and individual files, replace STUDENTID with your real id, then verify tests before submit."
                 : writing
-                  ? "Run Build to write a draft from your guideline, or plan sections manually below."
-                  : "Run Build to write a deliverable from your guideline, or plan your approach below."}
+                  ? "Run Build to write files from your guideline, or plan sections manually below."
+                  : "Run Build to generate java/report/GenAI/tests/ZIP from your guideline."}
             </p>
             <p>
-              Use AI chat to critique and improve what Build wrote — normal coach
-              mode still helps you revise rather than blindly submit.
+              When course materials are uploaded, Build stays within that learning
+              scope plus the guideline.
             </p>
             <div className="space-y-1">
-              <Badge variant="secondary">Build draft</Badge>{" "}
+              <Badge variant="secondary">Download files</Badge>{" "}
               <Badge variant="secondary">Revise</Badge>{" "}
               <Badge variant="secondary">Check rubric</Badge>{" "}
               <Badge variant="secondary">Verify sources</Badge>

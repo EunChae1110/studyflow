@@ -10,6 +10,7 @@ import {
   researchSources,
 } from "@/lib/db/schema";
 import { getGuidelineTextsForAssignment } from "@/lib/guidelines/store";
+import { getMaterialTextsForAssignment } from "@/lib/materials/store";
 
 /**
  * Build hybrid memory context for /api/chat:
@@ -157,6 +158,26 @@ export async function buildHybridContextPack(params: {
       "## Uploaded assignment guidelines (authoritative brief/rubric text)\n" +
         "Use these to understand requirements, marking criteria, and constraints. Prefer them over guesses.\n\n" +
         chunks.join("\n\n"),
+    );
+  }
+
+  const materialDocs = await getMaterialTextsForAssignment(
+    assignment.id,
+    params.userId,
+  );
+  if (materialDocs.length) {
+    const chunks = materialDocs.map((m, i) => {
+      const body = m.text.slice(0, 10_000);
+      return `### Material ${i + 1}: ${m.title}\n${body}`;
+    });
+    sections.push(
+      "## Course materials (學習範圍 — ground answers ONLY in these + guideline)\n" +
+        "Do not invent lecture content beyond uploaded materials. If missing, say what is not covered.\n\n" +
+        chunks.join("\n\n"),
+    );
+  } else {
+    sections.push(
+      "## Course materials\n(none uploaded — for Notes-only, say materials are missing rather than inventing lecture content.)",
     );
   }
 

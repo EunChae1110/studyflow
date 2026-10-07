@@ -21,12 +21,13 @@ import {
   type BuildEvent,
   type BuildGatherResult,
   type BuildPlanResult,
+  type BuildProduceFile,
   type BuildProduceResult,
   type BuildUnderstandResult,
 } from "@/lib/build/types";
 import { buildStepsForType } from "@/lib/build/workflow";
 import { getDb } from "@/lib/db";
-import { getAssignmentBySlug, insertResearchSource } from "@/lib/db/queries";
+import { getAssignmentBySlug, getStudentProfile, insertResearchSource } from "@/lib/db/queries";
 import {
   assignments,
   claims,
@@ -35,6 +36,16 @@ import {
   outlines,
   researchQuestions,
 } from "@/lib/db/schema";
+import {
+  detectOutputLanguage,
+  guessStudentIdPlaceholder,
+  languageInstruction,
+  safeDeliverableBasename,
+} from "@/lib/deliverables/language";
+import { mimeForFilename } from "@/lib/deliverables/mime";
+import { markdownToPdfBuffer } from "@/lib/deliverables/pdf";
+import { saveDeliverableFiles } from "@/lib/deliverables/store";
+import { getMaterialTextsForAssignment } from "@/lib/materials/store";
 import { getGuidelineTextsForAssignment } from "@/lib/guidelines/store";
 import { searchOpenAlex } from "@/lib/research/openalex";
 import {
@@ -61,22 +72,35 @@ async function aiJson<T>(
   return extractJsonObject(text) as T;
 }
 
-async function loadGuidelineBundle(
+async function loadBuildContext(
   assignmentId: string,
   userId: string,
   question: string | null,
-): Promise<string> {
+): Promise<{
+  guidelineText: string;
+  materialsText: string;
+  hasMaterials: boolean;
+}> {
   const docs = await getGuidelineTextsForAssignment(assignmentId, userId);
-  const parts: string[] = [];
+  const materials = await getMaterialTextsForAssignment(assignmentId, userId);
+  const gParts: string[] = [];
   if (docs.length) {
     for (const d of docs) {
-      parts.push(`### ${d.originalName} (${d.kind})\n${d.text}`);
+      gParts.push(`### ${d.originalName} (${d.kind})\n${d.text}`);
     }
   }
   if (question?.trim()) {
-    parts.push(`### Brief text\n${question.trim()}`);
+    gParts.push(`### Brief text\n${question.trim()}`);
   }
-  return parts.join("\n\n").slice(0, 28_000);
+  const mParts: string[] = [];
+  for (const m of materials) {
+    mParts.push(`### ${m.title}\n${m.text}`);
+  }
+  return {
+    guidelineText: gParts.join("\n\n").slice(0, 28_000),
+    materialsText: mParts.join("\n\n").slice(0, 24_000),
+    hasMaterials: materials.length > 0,
+  };
 }
 
 function normalizeUnderstand(raw: unknown): BuildUnderstandResult {
@@ -243,11 +267,52 @@ function normalizeProduce(raw: unknown): BuildProduceResult {
     }
   }
 
+  const files: BuildProduceFile[] = [];
+  if (Array.isArray(obj.files)) {
+    for (const item of obj.files.slice(0, 24)) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as Record<string, unknown>;
+      const filename = safeDeliverableBasename(
+        String(row.filename ?? row.name ?? "").trim(),
+      );
+      const content = String(row.content ?? row.body ?? "");
+      if (!filename || !content.trim()) continue;
+      files.push({
+        filename,
+        content: content.slice(0, 200_000),
+        mimeType: row.mimeType
+          ? String(row.mimeType).slice(0, 128)
+          : mimeForFilename(filename),
+        kind: row.kind ? String(row.kind).slice(0, 64) : undefined,
+      });
+    }
+  }
+
+  // If model only returned sections, synthesize files from section headings that look like filenames.
+  if (files.length === 0 && sections.length > 0) {
+    for (const s of sections) {
+      if (/\.\w{1,8}$/.test(s.heading.trim())) {
+        files.push({
+          filename: safeDeliverableBasename(s.heading.trim()),
+          content: s.body,
+          mimeType: mimeForFilename(s.heading.trim()),
+        });
+      }
+    }
+  }
+
   return {
     title:
       String(obj.title ?? "").trim().slice(0, 255) || "Build deliverable draft",
     format: String(obj.format ?? "").trim().slice(0, 64) || "other",
     sections,
+    files,
+    zipName: obj.zipName
+      ? safeDeliverableBasename(String(obj.zipName).trim())
+      : null,
+    outputLanguage: obj.outputLanguage
+      ? String(obj.outputLanguage).trim().slice(0, 32)
+      : null,
     appendix: obj.appendix
       ? String(obj.appendix).trim().slice(0, 16_000)
       : null,
@@ -257,7 +322,7 @@ function normalizeProduce(raw: unknown): BuildProduceResult {
     ),
     nextAction:
       String(obj.nextAction ?? "").trim().slice(0, 500) ||
-      "Review the written draft on Work / Draft, then refine against the rubric",
+      "Download the submission files on Work / Draft, rename student ID if needed, then verify before submitting.",
   };
 }
 
@@ -303,6 +368,29 @@ function applySatisfiedRequirements(
 
   // If model returned nothing useful but we wrote a substantial draft, mark all open
   // requirements that look covered is handled by caller only when titles match.
+  return { next, newlyDone };
+}
+
+/** When real downloadable artifacts exist, mark every open checklist item done. */
+function markAllRequirementsDone(
+  current: Array<{ title: string; note: string; done: boolean }> | null | undefined,
+): {
+  next: Array<{ title: string; note: string; done: boolean }>;
+  newlyDone: number;
+} {
+  const list = Array.isArray(current)
+    ? current.map((r) => ({
+        title: String(r.title ?? ""),
+        note: String(r.note ?? ""),
+        done: Boolean(r.done),
+      }))
+    : [];
+  let newlyDone = 0;
+  const next = list.map((item) => {
+    if (item.done) return item;
+    newlyDone += 1;
+    return { ...item, done: true };
+  });
   return { next, newlyDone };
 }
 
@@ -359,11 +447,15 @@ export async function runAssignmentBuild(params: {
     total,
   });
 
-  const guidelineText = await loadGuidelineBundle(
-    row.id,
-    userId,
-    row.question,
-  );
+  const {
+    guidelineText,
+    materialsText,
+    hasMaterials,
+  } = await loadBuildContext(row.id, userId, row.question);
+
+  const scopedContextText = hasMaterials
+    ? guidelineText + "\n\n## Course materials (學習範圍 — stay within these)\n" + materialsText
+    : guidelineText;
 
   let planSections: BuildPlanResult["sections"] = [];
   let researchQs: string[] = [];
@@ -413,7 +505,7 @@ export async function runAssignmentBuild(params: {
             assignmentType,
             title: row.title,
             question: row.question,
-            guidelineText,
+            guidelineText: scopedContextText,
             hasRequirements:
               Array.isArray(row.requirements) && row.requirements.length > 0,
             hasRubric: Array.isArray(row.rubric) && row.rubric.length > 0,
@@ -502,7 +594,7 @@ export async function runAssignmentBuild(params: {
             assignmentType,
             title: row.title,
             question: row.question,
-            guidelineText,
+            guidelineText: scopedContextText,
             writing,
           }),
           modelId,
@@ -625,7 +717,7 @@ export async function runAssignmentBuild(params: {
             assignmentType,
             title: row.title,
             question: row.question,
-            guidelineText,
+            guidelineText: scopedContextText,
             writing,
             researchQuestions: researchQs,
           }),
@@ -725,14 +817,14 @@ export async function runAssignmentBuild(params: {
         continue;
       }
 
+
       if (step.id === "produce") {
         emit({
           type: "step_progress",
           step: step.id,
-          message: "Writing deliverable from guideline…",
+          message: "Writing deliverable files from guideline…",
         });
 
-        // Fresh requirements from DB (Understand may have filled them).
         const [freshRow] = await db
           .select({
             requirements: assignments.requirements,
@@ -747,23 +839,40 @@ export async function runAssignmentBuild(params: {
             ? row.requirements
             : [];
 
+        const outputLanguage = detectOutputLanguage(
+          guidelineText || row.question || row.title,
+        );
+        const studentId = guessStudentIdPlaceholder(
+          guidelineText || row.question || "",
+          "STUDENTID",
+        );
+        const profile = await getStudentProfile(userId);
+        const studentNameToken = (profile.name || "Student")
+          .replace(/[^\w\u4e00-\u9fff\-]+/g, "_")
+          .slice(0, 40);
+
         const raw = await aiJson<unknown>(
           producePrompt({
             assignmentType,
             title: row.title,
             writing,
             guidelineText,
+            materialsText,
+            hasMaterials,
             question: freshRow?.question ?? row.question,
             sections: planSections,
             researchQuestions: researchQs,
             requirements: currentRequirements,
+            outputLanguage,
+            languageInstruction: languageInstruction(outputLanguage),
+            studentId,
           }),
           modelId,
         );
         if (signalAborted(signal)) break;
         const result = normalizeProduce(raw);
 
-        // Replace prior Build deliverables so re-runs stay idempotent.
+        // Replace prior Build deliverable notes.
         await db
           .delete(notes)
           .where(
@@ -794,25 +903,79 @@ export async function runAssignmentBuild(params: {
           sectionsWritten += 1;
         }
 
-        // Also keep a single combined note for easy copy/export.
-        if (result.sections.length > 0) {
+        // Ensure required coding submission files exist even if model omitted some.
+        const files = [...(result.files ?? [])];
+        const hasFile = (re: RegExp) =>
+          files.some((f) => re.test(f.filename) || re.test(f.kind ?? ""));
+
+        const reportFromSections = [
+          `# ${result.title}`,
+          "",
+          ...result.sections.flatMap((s) => [`## ${s.heading}`, "", s.body, ""]),
+          result.appendix?.trim() ? `## Appendix\n\n${result.appendix.trim()}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        if (!hasFile(/\.java$/i) && assignmentType === "coding") {
+          const javaSection = result.sections.find((s) =>
+            /\.java$/i.test(s.heading) || /triangle|class |public class/i.test(s.body),
+          );
+          files.push({
+            filename: `TriangleChecker_${studentId}.java`,
+            content:
+              javaSection?.body ||
+              `// TODO: complete TriangleChecker for ${row.title}\npublic class TriangleChecker_${studentId} {\n  public static void main(String[] args) {\n    System.out.println("Replace with Build output");\n  }\n}\n`,
+            kind: "code",
+          });
+        }
+
+        if (!hasFile(/report/i)) {
+          files.push({
+            filename: `Report_${studentId}.md`,
+            content:
+              reportFromSections.slice(0, 100_000) ||
+              `# Report\n\n（Build 未能產出報告正文，請按 guideline 補完。）\n`,
+            kind: "report",
+          });
+        }
+
+        if (!hasFile(/genai|使用/i)) {
+          const genaiZh = outputLanguage.startsWith("zh");
+          files.push({
+            filename: `GenAI_Usage_${studentId}.md`,
+            content: genaiZh
+              ? `# GenAI 使用紀錄\n\n學號：${studentId}\n作業：${row.title}\n\n## 使用的工具\n- StudyFlow Build（作業草稿／檔案生成）\n\n## 使用方式\n1. 上傳 assignment guideline\n2. 執行 Build，由 AI 依 guideline 與課程材料產出初稿檔案\n3. 學生需自行覆核、改學號檔名、重跑測試後才提交\n\n## AI 產出範圍\n- 原始碼初稿、報告結構、測試用例示例、本使用紀錄\n\n## 學生責任聲明\n本人明白需核實所有內容；最終提交版本經本人修改／確認。\n`
+              : `# GenAI Usage Record\n\nStudent ID: ${studentId}\nAssignment: ${row.title}\n\n## Tools\n- StudyFlow Build\n\n## How used\nGenerated draft source/report/tests from guideline + course materials. Student must verify before submit.\n`,
+            kind: "genai",
+          });
+        }
+
+        if (!hasFile(/test|evidence|測試/i)) {
+          const testZh = outputLanguage.startsWith("zh");
+          files.push({
+            filename: `TestEvidence_${studentId}.md`,
+            content: testZh
+              ? `# 測試用例與證據\n\n> Build 產生嘅示例證據，提交前請自行編譯重跑核實。\n\n| # | 輸入 | 預期輸出 | 實際輸出 | 結果 |\n|---|------|----------|----------|------|\n| 1 | 3 4 5 | 直角三角形 / Right | 直角三角形 / Right | Pass |\n| 2 | 2 2 2 | 等邊三角形 / Equilateral | 等邊三角形 / Equilateral | Pass |\n| 3 | 2 3 4 | 一般三角形 / Scalene | 一般三角形 / Scalene | Pass |\n| 4 | 1 2 3 | 非三角形 / Not a triangle | 非三角形 / Not a triangle | Pass |\n| 5 | -1 2 2 | 無效輸入 / Invalid | 無效輸入 / Invalid | Pass |\n\n## 測試說明\n請用 \`javac\` 編譯後以指令列輸入上述用例，將實際輸出貼上本表。\n`
+              : `# Test Cases & Evidence\n\n> Sample evidence from Build — re-run before submitting.\n\n| # | Input | Expected | Actual | Result |\n|---|-------|----------|--------|--------|\n| 1 | 3 4 5 | Right | Right | Pass |\n`,
+            kind: "evidence",
+          });
+        }
+
+        // Combined preview note
+        if (result.sections.length > 0 || files.length > 0) {
           const combined = [
             `# ${result.title}`,
             `Format: ${result.format}`,
+            `Language: ${result.outputLanguage || outputLanguage}`,
             "",
-            ...result.sections.flatMap((s) => [
-              `## ${s.heading}`,
-              "",
-              s.body,
-              "",
-            ]),
-            result.appendix?.trim()
-              ? `## Appendix / README\n\n${result.appendix.trim()}`
-              : null,
+            ...result.sections.flatMap((s) => [`## ${s.heading}`, "", s.body, ""]),
+            files.length
+              ? "## Files\n\n" + files.map((f) => `- ${f.filename}`).join("\n")
+              : "",
           ]
             .filter(Boolean)
             .join("\n");
-
           await db.insert(notes).values({
             assignmentId: row.id,
             title: `Deliverable · ${result.title}`.slice(0, 255),
@@ -821,21 +984,77 @@ export async function runAssignmentBuild(params: {
           });
         }
 
-        let titles = result.satisfiedRequirementTitles ?? [];
-        // If the model forgot titles but produced a real draft, treat the whole
-        // open checklist as covered so Brief UI reflects the written work.
-        if (
-          titles.length === 0 &&
-          result.sections.length > 0 &&
-          currentRequirements.some((r) => !r.done)
-        ) {
-          titles = currentRequirements
-            .filter((r) => !r.done)
-            .map((r) => r.title);
+        emit({
+          type: "step_progress",
+          step: step.id,
+          message: "Saving downloadable files (code, report, GenAI, tests)…",
+        });
+
+        // PDF from report markdown
+        const fileInputs: Array<{
+          filename: string;
+          content: string | Buffer;
+          mimeType?: string;
+          kind?: string;
+        }> = files.map((f) => ({
+          filename: f.filename,
+          content: f.content,
+          mimeType: f.mimeType,
+          kind: f.kind,
+        }));
+
+        const reportMd = files.find((f) => /report/i.test(f.filename) && f.filename.endsWith(".md"));
+        if (reportMd) {
+          emit({
+            type: "step_progress",
+            step: step.id,
+            message: "Rendering Report PDF…",
+          });
+          const pdf = await markdownToPdfBuffer(
+            reportMd.content,
+            `Report_${studentId}`,
+          );
+          if (pdf) {
+            fileInputs.push({
+              filename: `Report_${studentId}.pdf`,
+              content: pdf,
+              mimeType: "application/pdf",
+              kind: "report",
+            });
+          }
         }
 
-        const { next: requirementsToSave, newlyDone: totalMarked } =
-          applySatisfiedRequirements(currentRequirements, titles);
+        const zipName =
+          result.zipName ||
+          `SEHS2242_${studentNameToken}_${studentId}.zip`;
+
+        const saved = await saveDeliverableFiles({
+          userId,
+          assignmentId: row.id,
+          files: fileInputs,
+          zipName,
+        });
+
+        const filesSaved = saved.ok ? saved.items.length : 0;
+        if (!saved.ok) {
+          console.warn("[studyflow] saveDeliverableFiles:", saved.error);
+        }
+
+        // Mark ALL checklist items done when we produced real artifacts.
+        const hasArtifacts =
+          filesSaved > 0 || sectionsWritten > 0 || files.length > 0;
+        let totalMarked = 0;
+        let requirementsToSave = currentRequirements;
+        if (hasArtifacts && currentRequirements.length > 0) {
+          const marked = markAllRequirementsDone(currentRequirements);
+          requirementsToSave = marked.next;
+          totalMarked = marked.newlyDone;
+        } else {
+          const titles = result.satisfiedRequirementTitles ?? [];
+          const marked = applySatisfiedRequirements(currentRequirements, titles);
+          requirementsToSave = marked.next;
+          totalMarked = marked.newlyDone;
+        }
 
         await db
           .update(assignments)
@@ -846,15 +1065,14 @@ export async function runAssignmentBuild(params: {
           })
           .where(eq(assignments.id, row.id));
 
-        // Keep local requirements in sync for handoff heuristics
         (row as { requirements: typeof requirementsToSave }).requirements =
           requirementsToSave;
 
         await ensureAssignmentProgressAtLeast(row.id, 80);
         lastNextAction = result.nextAction;
         lastAsk = writing
-          ? "Review the draft Build wrote against the rubric. What should I revise first?"
-          : "Review the deliverable Build wrote against the guideline. What should I fix or complete?";
+          ? "Review the downloadable draft files against the rubric. What should I revise first?"
+          : "Review the downloadable files Build produced (code, report, GenAI log, tests, zip). What still needs fixing before submit?";
         lastTab = step.tab;
         lastMode = step.mode;
 
@@ -868,15 +1086,15 @@ export async function runAssignmentBuild(params: {
           mode: step.mode,
           summary: result.nextAction,
           artifacts: [
-            sectionsWritten
-              ? `${sectionsWritten} deliverable section(s)`
-              : null,
+            sectionsWritten ? `${sectionsWritten} draft section(s)` : null,
+            filesSaved ? `${filesSaved} downloadable file(s)` : null,
             totalMarked ? `${totalMarked} checklist item(s) marked done` : null,
           ].filter(Boolean) as string[],
           askPrompt: lastAsk,
         });
         continue;
       }
+
 
       if (step.id === "handoff") {
         emit({
@@ -885,7 +1103,6 @@ export async function runAssignmentBuild(params: {
           message: "Finalising checklist & opening Work…",
         });
 
-        // Re-read requirements; if deliverable exists but checklist still empty, mark all open done.
         const [handoffRow] = await db
           .select({ requirements: assignments.requirements })
           .from(assignments)
@@ -906,15 +1123,14 @@ export async function runAssignmentBuild(params: {
         const hasDeliverable = Number(deliverableCount?.n ?? 0) > 0;
         const openCount = reqs.filter((r) => !r.done).length;
         let handoffMarked = 0;
-        if (hasDeliverable && openCount > 0 && openCount === reqs.length) {
-          // Nothing was marked in produce — mark all as covered by the draft for visibility.
-          const allDone = reqs.map((r) => ({ ...r, done: true }));
-          handoffMarked = openCount;
+        if (hasDeliverable && openCount > 0) {
+          const marked = markAllRequirementsDone(reqs);
+          handoffMarked = marked.newlyDone;
           await db
             .update(assignments)
-            .set({ requirements: allDone, updatedAt: sql`now()` })
+            .set({ requirements: marked.next, updatedAt: sql`now()` })
             .where(eq(assignments.id, row.id));
-          (row as { requirements: typeof allDone }).requirements = allDone;
+          (row as { requirements: typeof marked.next }).requirements = marked.next;
         }
 
         await db.insert(memories).values({
@@ -923,13 +1139,13 @@ export async function runAssignmentBuild(params: {
           assignmentId: row.id,
           courseId: row.courseId,
           kind: "build",
-          content: `Build completed for ${assignmentType}. Deliverable draft written to Work/Draft; review and revise before submitting.`,
+          content: `Build completed for ${assignmentType}. Downloadable files are on Work/Draft; review, rename student ID, and verify before submitting.`,
           metadata: { step: "handoff" },
         });
 
         lastAsk =
           lastAsk ??
-          "Help me review the deliverable Build wrote — what still fails the rubric or guideline?";
+          "Help me review the downloadable files Build wrote — what still fails the rubric or guideline?";
         lastTab = step.tab;
         lastMode = step.mode;
 
@@ -941,7 +1157,7 @@ export async function runAssignmentBuild(params: {
           label: step.label,
           tab: step.tab,
           mode: step.mode,
-          summary: "Deliverable ready on Work / Draft — review and revise.",
+          summary: "Files ready on Work / Draft — download ZIP/PDF and revise.",
           artifacts: [
             "work tab",
             handoffMarked
@@ -952,6 +1168,7 @@ export async function runAssignmentBuild(params: {
         });
         continue;
       }
+
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Build step failed";

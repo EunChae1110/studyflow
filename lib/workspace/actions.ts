@@ -12,6 +12,10 @@ import {
   deleteGuideline,
 } from "@/lib/guidelines/store";
 import {
+  deleteCourseMaterial,
+  saveCourseMaterialFile,
+} from "@/lib/materials/store";
+import {
   defaultNextActionForType,
   parseAssignmentType,
 } from "@/lib/assignment-types";
@@ -659,6 +663,76 @@ export async function deleteGuidelineAction(
   if (slug) {
     revalidatePath(`/assignments/${slug}`);
     revalidatePath(`/assignments/${slug}/brief`);
+  }
+  revalidatePath("/assignments");
+  return { ok: true };
+}
+
+
+
+export async function uploadCourseMaterialAction(
+  _prev: WorkspaceActionState,
+  formData: FormData,
+): Promise<WorkspaceActionState> {
+  if (!isDatabaseConfigured()) return dbUnavailable();
+
+  const user = await requireUser();
+  const assignmentId = String(formData.get("assignmentId") ?? "").trim();
+  const assignmentSlug = String(formData.get("assignmentSlug") ?? "").trim();
+  const file = formData.get("material");
+
+  if (!assignmentId) {
+    return { ok: false, error: "Missing assignment." };
+  }
+  if (!(file instanceof File) || file.size <= 0) {
+    return {
+      ok: false,
+      error: "Choose a PDF, DOCX, TXT, or Markdown material file.",
+      fieldErrors: { material: ["File is required."] },
+    };
+  }
+
+  const saved = await saveCourseMaterialFile({
+    userId: user.id,
+    assignmentId,
+    file,
+  });
+
+  if (!saved.ok) {
+    return { ok: false, error: saved.error, fieldErrors: { material: [saved.error] } };
+  }
+
+  await recomputeAssignmentProgress(assignmentId);
+
+  if (assignmentSlug) {
+    revalidatePath(`/assignments/${assignmentSlug}`);
+    revalidatePath(`/assignments/${assignmentSlug}/notes`);
+    revalidatePath(`/assignments/${assignmentSlug}/brief`);
+    revalidatePath(`/assignments/${assignmentSlug}/draft`);
+  }
+  revalidatePath("/assignments");
+  return { ok: true };
+}
+
+export async function deleteCourseMaterialAction(
+  materialId: string,
+  assignmentSlug?: string,
+): Promise<WorkspaceActionState> {
+  if (!isDatabaseConfigured()) return dbUnavailable();
+  const user = await requireUser();
+
+  const result = await deleteCourseMaterial({
+    materialId,
+    userId: user.id,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const slug = assignmentSlug ?? result.assignmentSlug;
+  if (slug) {
+    revalidatePath(`/assignments/${slug}`);
+    revalidatePath(`/assignments/${slug}/notes`);
+    revalidatePath(`/assignments/${slug}/brief`);
+    revalidatePath(`/assignments/${slug}/draft`);
   }
   revalidatePath("/assignments");
   return { ok: true };

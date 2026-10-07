@@ -83,6 +83,16 @@ export type CourseMaterialItem = {
   status: string;
 };
 
+export type DeliverableListItem = {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: string;
+  batchId: string | null;
+  createdAt: string;
+};
+
 export type GuidelineListItem = {
   id: string;
   originalName: string;
