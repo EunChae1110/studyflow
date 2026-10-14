@@ -22,13 +22,13 @@ export const STUDYFLOW_MODELS: StudyflowModelOption[] = [
     id: GPT_MODEL_ID,
     label: "GPT",
     family: "gpt",
-    description: "OpenAI GPT via mid-station",
+    description: "Fast, clear explanations and study coaching.",
   },
   {
     id: CLAUDE_MODEL_ID,
     label: "Claude",
     family: "claude",
-    description: "Anthropic Claude via mid-station",
+    description: "Careful reasoning for structure, logic, and critique.",
   },
 ];
 

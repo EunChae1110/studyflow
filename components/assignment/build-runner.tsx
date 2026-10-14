@@ -20,8 +20,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type BuildRunnerProps = {
-  /** Compact = header button + floating overlay; panel = brief card. */
-  variant?: "header" | "panel";
   className?: string;
 };
 
@@ -247,92 +245,39 @@ function BuildFloatingPanel() {
   );
 }
 
-export function BuildRunner({
-  variant = "panel",
-  className,
-}: BuildRunnerProps) {
+export function BuildRunner({ className }: BuildRunnerProps) {
   const { running, start, cancel, hasGuideline } = useBuildSession();
 
-  if (variant === "header") {
-    return (
-      <>
-        <div className={cn("flex items-center gap-2", className)}>
-          <Button
-            type="button"
-            size="sm"
-            onClick={start}
-            disabled={running}
-            className="gap-1.5"
-            title={
-              hasGuideline
-                ? "Write assignment from guideline"
-                : "Build (no guideline uploaded yet)"
-            }
-          >
-            {running ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Hammer className="size-3.5" />
-            )}
-            {running ? "Building…" : "Build"}
-          </Button>
-          {running ? (
-            <Button type="button" size="sm" variant="outline" onClick={cancel}>
-              <Square className="size-3.5" />
-              Cancel
-            </Button>
-          ) : null}
-        </div>
-        <BuildFloatingPanel />
-      </>
-    );
-  }
-
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-border bg-surface p-4 shadow-sm",
-        className,
-      )}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <Hammer className="size-4 text-primary" />
-            Build
-          </h3>
-          <p className="mt-1 text-xs text-muted">
-            One click runs Understand → Gather → Plan → Write deliverable from
-            your guideline. The draft lands on Work / Draft and matching Brief
-            checklist items are ticked. Progress stays visible while tabs update.
-          </p>
-          {!hasGuideline ? (
-            <p className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
-              <AlertTriangle className="mt-0.5 size-3 shrink-0" />
-              Upload a guideline first for better results (you'll get a soft
-              warn if you Build without one).
-            </p>
-          ) : null}
-        </div>
-        <div className="flex gap-2">
+    <>
+      <div className={cn("flex items-center gap-2", className)}>
+        <Button
+          type="button"
+          size="sm"
+          onClick={start}
+          disabled={running}
+          className="gap-1.5"
+          title={
+            hasGuideline
+              ? "Write assignment from guideline"
+              : "Build (no guideline uploaded yet)"
+          }
+        >
           {running ? (
-            <Button type="button" size="sm" variant="outline" onClick={cancel}>
-              <Square className="size-3.5" />
-              Cancel
-            </Button>
+            <Loader2 className="size-3.5 animate-spin" />
           ) : (
-            <Button type="button" size="sm" onClick={start}>
-              <Hammer className="size-3.5" />
-              Build
-            </Button>
+            <Hammer className="size-3.5" />
           )}
-        </div>
+          {running ? "Building…" : "Build"}
+        </Button>
+        {running ? (
+          <Button type="button" size="sm" variant="outline" onClick={cancel}>
+            <Square className="size-3.5" />
+            Cancel
+          </Button>
+        ) : null}
       </div>
-
-      <p className="mt-3 text-[11px] text-muted">
-        Progress appears in the floating Build panel (bottom-right) so it stays
-        visible while tabs update.
-      </p>
-    </div>
+      <BuildFloatingPanel />
+    </>
   );
 }

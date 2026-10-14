@@ -4,6 +4,10 @@ import {
   streamText,
 } from "ai";
 import { getSession } from "@/lib/auth/session";
+import {
+  applyProvisionalChatTitle,
+  generateChatTitle,
+} from "@/lib/ai/chat-title";
 import { buildHybridContextPack } from "@/lib/ai/context-pack";
 import { resolveModelId } from "@/lib/ai/models";
 import { getChatModel, hasAiCredentials } from "@/lib/ai/provider";
@@ -47,7 +51,7 @@ export async function POST(req: Request) {
     return Response.json(
       {
         error:
-          "AI mid-station is not configured. Add AI_BASE_URL and AI_API_KEY (or OPENAI_BASE_URL / OPENAI_API_KEY) to .env.local.",
+          "AI station is not configured. Add AI_BASE_URL and AI_API_KEY (or OPENAI_BASE_URL / OPENAI_API_KEY) to .env.local.",
       },
       { status: 503 },
     );
@@ -88,12 +92,20 @@ export async function POST(req: Request) {
             role: "user",
             content: userText,
           });
+          // Title from first user message right away (history no longer shows "{Mode} chat").
+          await applyProvisionalChatTitle({
+            conversationId,
+            userText,
+          });
         }
       }
     } catch (error) {
       console.warn("[studyflow] chat persistence (pre) failed:", error);
     }
   }
+
+  const lastUserForTitle = [...messages].reverse().find((m) => m.role === "user");
+  const userTextForTitle = textFromMessage(lastUserForTitle);
 
   const typeMatch = /Assignment type:\s*(\S+)/.exec(contextPack);
   const assignmentTypeHint = typeMatch?.[1] ?? null;
@@ -121,6 +133,15 @@ export async function POST(req: Request) {
           role: "assistant",
           content: text,
         });
+        // Polish title after the first assistant reply when still placeholder/provisional.
+        if (userTextForTitle) {
+          await generateChatTitle({
+            conversationId,
+            userText: userTextForTitle,
+            assistantText: text,
+            modelId,
+          });
+        }
       } catch (error) {
         console.warn("[studyflow] chat persistence (post) failed:", error);
       }

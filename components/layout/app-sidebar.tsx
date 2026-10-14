@@ -69,12 +69,12 @@ function AppSidebarFrame({
       animate={{ width: collapsed ? 78 : 240 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
       className={cn(
-        "border-r border-border bg-surface",
+        "h-full min-h-0 border-r border-border bg-surface",
         preview ? "flex flex-col" : "hidden lg:flex lg:flex-col",
         className,
       )}
     >
-      <div className="flex items-center gap-2 px-4 py-4">
+      <div className="flex shrink-0 items-center gap-2 px-4 py-4">
         {collapsed ? (
           <StudyFlowMark className="size-8" withShadow />
         ) : (
@@ -95,64 +95,66 @@ function AppSidebarFrame({
         </Button>
       </div>
 
-      <SidebarGroup title="Workspace" collapsed={collapsed}>
-        {workspaceNav.map(({ href, label, icon: Icon }) => {
-          const active = isPathActive(activePath, href);
-          return (
-            <SidebarItem key={label} href={href} active={active} collapsed={collapsed}>
-              <Icon className="size-4.5" />
-              {!collapsed && <span>{label}</span>}
-            </SidebarItem>
-          );
-        })}
-      </SidebarGroup>
-
-      <SidebarGroup title="Courses" collapsed={collapsed}>
-        {courseItems.length === 0 ? (
-          <SidebarItem
-            href="/courses"
-            active={activePath === "/courses"}
-            collapsed={collapsed}
-          >
-            <BookOpen className="size-4.5" />
-            {!collapsed && <span className="text-muted">No courses yet</span>}
-          </SidebarItem>
-        ) : (
-          courseItems.map((course) => {
-            const href = `/courses/${course.id}`;
-            const active =
-              activePath === href || activePath.startsWith(`${href}/`);
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <SidebarGroup title="Workspace" collapsed={collapsed}>
+          {workspaceNav.map(({ href, label, icon: Icon }) => {
+            const active = isPathActive(activePath, href);
             return (
-              <SidebarItem
-                key={course.id}
-                href={href}
-                active={active}
-                collapsed={collapsed}
-              >
-                <BookOpen className="size-4.5" />
-                {!collapsed && <span>{course.name}</span>}
+              <SidebarItem key={label} href={href} active={active} collapsed={collapsed}>
+                <Icon className="size-4.5" />
+                {!collapsed && <span>{label}</span>}
               </SidebarItem>
             );
-          })
-        )}
-      </SidebarGroup>
+          })}
+        </SidebarGroup>
 
-      <SidebarGroup title="Tools" collapsed={collapsed}>
-        {toolNav.map(({ href, label, icon: Icon }) => {
-          const active =
-            preview || !searchParams
-              ? false
-              : isToolActive(pathname, searchParams, href);
-          return (
-            <SidebarItem key={label} href={href} active={active} collapsed={collapsed}>
-              <Icon className="size-4.5" />
-              {!collapsed && <span>{label}</span>}
+        <SidebarGroup title="Courses" collapsed={collapsed}>
+          {courseItems.length === 0 ? (
+            <SidebarItem
+              href="/courses"
+              active={activePath === "/courses"}
+              collapsed={collapsed}
+            >
+              <BookOpen className="size-4.5" />
+              {!collapsed && <span className="text-muted">No courses yet</span>}
             </SidebarItem>
-          );
-        })}
-      </SidebarGroup>
+          ) : (
+            courseItems.map((course) => {
+              const href = `/courses/${course.id}`;
+              const active =
+                activePath === href || activePath.startsWith(`${href}/`);
+              return (
+                <SidebarItem
+                  key={course.id}
+                  href={href}
+                  active={active}
+                  collapsed={collapsed}
+                >
+                  <BookOpen className="size-4.5" />
+                  {!collapsed && <span>{course.name}</span>}
+                </SidebarItem>
+              );
+            })
+          )}
+        </SidebarGroup>
 
-      <div className="mt-auto border-t border-border p-3">
+        <SidebarGroup title="Tools" collapsed={collapsed}>
+          {toolNav.map(({ href, label, icon: Icon }) => {
+            const active =
+              preview || !searchParams
+                ? false
+                : isToolActive(pathname, searchParams, href);
+            return (
+              <SidebarItem key={label} href={href} active={active} collapsed={collapsed}>
+                <Icon className="size-4.5" />
+                {!collapsed && <span>{label}</span>}
+              </SidebarItem>
+            );
+          })}
+        </SidebarGroup>
+      </div>
+
+      <div className="shrink-0 border-t border-border p-3">
         {supportNav.map(({ href, label, icon: Icon }) => (
           <SidebarItem key={label} href={href} active={false} collapsed={collapsed}>
             <Icon className="size-4.5" />
@@ -161,7 +163,9 @@ function AppSidebarFrame({
         ))}
       </div>
 
-      {!collapsed && <p className="px-4 pb-3 text-xs text-muted">{tagline}</p>}
+      {!collapsed && (
+        <p className="shrink-0 px-4 pb-3 text-xs text-muted">{tagline}</p>
+      )}
     </motion.aside>
   );
 }

@@ -408,7 +408,7 @@ export async function runAssignmentBuild(params: {
   const { userId, assignmentSlug, modelId, signal, emit } = params;
 
   if (!hasAiCredentials()) {
-    emit({ type: "error", error: "AI mid-station is not configured." });
+    emit({ type: "error", error: "AI station is not configured." });
     return;
   }
 

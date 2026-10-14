@@ -9,6 +9,13 @@ import {
   type StudyflowModelOption,
 } from "@/lib/ai/models";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 export type AssistantMode = "Notes-only" | "Research" | "Outline";
@@ -25,10 +32,32 @@ type PromptBarProps = {
   seedValue?: string;
   onSend?: (value: string) => void | Promise<void>;
   onStop?: () => void;
-  showModeChips?: boolean;
 };
 
-const ALL_MODES: AssistantMode[] = ["Notes-only", "Research", "Outline"];
+const MODE_OPTIONS: Array<{
+  id: AssistantMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "Notes-only",
+    label: "Notes-only",
+    description:
+      "Ground answers only in your course materials. External sources stay off.",
+  },
+  {
+    id: "Research",
+    label: "Research",
+    description:
+      "Verify sources, check evidence, and plan next steps — no full write-up.",
+  },
+  {
+    id: "Outline",
+    label: "Outline",
+    description:
+      "Structural feedback, logic checks, and evidence planning for your draft.",
+  },
+];
 
 export function PromptBar({
   mode,
@@ -42,7 +71,6 @@ export function PromptBar({
   seedValue = "",
   onSend,
   onStop,
-  showModeChips = true,
 }: PromptBarProps) {
   const [value, setValue] = React.useState(seedValue);
   const [internalModelId, setInternalModelId] = React.useState(DEFAULT_MODEL_ID);
@@ -83,23 +111,8 @@ export function PromptBar({
       transition={{ duration: 0.2 }}
       className="space-y-2"
     >
-      <div className="rounded-xl border border-border bg-surface p-3 shadow-sm transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
-        <div className="mb-2 flex flex-wrap items-center gap-1.5">
-          {showModeChips
-            ? ALL_MODES.map((m) => (
-                <Chip
-                  key={m}
-                  active={m === mode}
-                  disabled={isStreaming || !onModeChange}
-                  onClick={() => onModeChange?.(m)}
-                >
-                  {m}
-                </Chip>
-              ))
-            : (
-                <Chip active>{mode}</Chip>
-              )}
-          <ModelSelector selected={selected} onChange={setModel} disabled={isStreaming} />
+      {extraChips.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5 px-0.5">
           {extraChips.map((chip) => (
             <Chip
               key={chip}
@@ -110,6 +123,9 @@ export function PromptBar({
             </Chip>
           ))}
         </div>
+      ) : null}
+
+      <div className="rounded-xl border border-border bg-surface p-3 shadow-sm transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
         <div className="flex items-end gap-2">
           <textarea
             value={value}
@@ -128,30 +144,123 @@ export function PromptBar({
             placeholder={placeholder}
             className="min-h-11 max-h-28 flex-1 resize-none bg-transparent text-sm leading-6 text-foreground outline-none placeholder:text-muted"
           />
-          <div className="flex items-center gap-1">
-<Button
-              type="button"
-              size="icon-sm"
-              className={cn(
-                "bg-primary text-primary-foreground hover:bg-primary/90",
-                isStreaming && "bg-foreground text-background",
-              )}
-              disabled={!isStreaming && !value.trim()}
-              onClick={() => {
-                if (isStreaming) onStop?.();
-                else void submit();
-              }}
-            >
-              {isStreaming ? <Square className="size-3.5" /> : <Send className="size-3.5" />}
-            </Button>
-          </div>
+          <Button
+            type="button"
+            size="icon-sm"
+            className={cn(
+              "shrink-0 bg-primary text-primary-foreground hover:bg-primary/90",
+              isStreaming && "bg-foreground text-background",
+            )}
+            disabled={!isStreaming && !value.trim()}
+            onClick={() => {
+              if (isStreaming) onStop?.();
+              else void submit();
+            }}
+          >
+            {isStreaming ? <Square className="size-3.5" /> : <Send className="size-3.5" />}
+          </Button>
+        </div>
+
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-2.5">
+          <ModeSelector
+            mode={mode}
+            onChange={onModeChange}
+            disabled={isStreaming || !onModeChange}
+          />
+          <ModelSelector
+            selected={selected}
+            onChange={setModel}
+            disabled={isStreaming}
+          />
         </div>
       </div>
+
       <p className="px-1 text-[11px] text-muted">
         {hint} <kbd className="rounded border border-border bg-surface px-1.5 py-0.5">↵</kbd> send ·{" "}
         <kbd className="rounded border border-border bg-surface px-1.5 py-0.5">⇧↵</kbd> new line
       </p>
     </motion.div>
+  );
+}
+
+function SelectorTrigger({
+  children,
+  disabled,
+  className,
+  "aria-label": ariaLabel,
+}: {
+  children: React.ReactNode;
+  disabled?: boolean;
+  className?: string;
+  "aria-label": string;
+}) {
+  return (
+    <DropdownMenuTrigger
+      disabled={disabled}
+      className={cn(
+        "inline-flex max-w-full items-center gap-1 rounded-lg border border-border bg-surface-muted py-1 pr-1.5 pl-2 text-[11.5px] font-medium text-foreground outline-none",
+        "hover:bg-surface disabled:cursor-not-allowed disabled:opacity-60",
+        className,
+      )}
+      aria-label={ariaLabel}
+    >
+      {children}
+      <ChevronDown className="size-3 shrink-0 text-muted" />
+    </DropdownMenuTrigger>
+  );
+}
+
+function ModeSelector({
+  mode,
+  onChange,
+  disabled,
+}: {
+  mode: AssistantMode;
+  onChange?: (mode: AssistantMode) => void;
+  disabled?: boolean;
+}) {
+  const selected = MODE_OPTIONS.find((m) => m.id === mode) ?? MODE_OPTIONS[0]!;
+
+  return (
+    <DropdownMenu>
+      <SelectorTrigger
+        disabled={disabled}
+        aria-label="Assistant mode"
+        className="border-transparent bg-primary-soft text-primary hover:bg-primary-soft/80"
+      >
+        <span className="truncate">{selected.label}</span>
+      </SelectorTrigger>
+      <DropdownMenuContent
+        align="start"
+        side="bottom"
+        sideOffset={6}
+        className="w-72"
+      >
+        <DropdownMenuRadioGroup
+          value={mode}
+          onValueChange={(value) => {
+            if (value === "Notes-only" || value === "Research" || value === "Outline") {
+              onChange?.(value);
+            }
+          }}
+        >
+          {MODE_OPTIONS.map((option) => (
+            <DropdownMenuRadioItem
+              key={option.id}
+              value={option.id}
+              className="items-start gap-2 py-2"
+            >
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="text-sm font-medium text-foreground">{option.label}</p>
+                <p className="text-[11px] leading-4 whitespace-normal text-muted">
+                  {option.description}
+                </p>
+              </div>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -165,23 +274,40 @@ function ModelSelector({
   disabled?: boolean;
 }) {
   return (
-    <label className="relative inline-flex items-center">
-      <span className="sr-only">選擇模型</span>
-      <select
-        value={selected.id}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-        className="appearance-none rounded-full border border-border bg-surface-muted py-1 pr-7 pl-2.5 text-[11.5px] font-medium text-foreground outline-none hover:bg-surface disabled:opacity-60"
-        aria-label="AI model"
+    <DropdownMenu>
+      <SelectorTrigger disabled={disabled} aria-label="AI model">
+        <span className="truncate">{selected.label}</span>
+      </SelectorTrigger>
+      <DropdownMenuContent
+        align="start"
+        side="bottom"
+        sideOffset={6}
+        className="w-72"
       >
-        {STUDYFLOW_MODELS.map((model) => (
-          <option key={model.id} value={model.id}>
-            {model.label} · {model.id}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2 text-muted" />
-    </label>
+        <DropdownMenuRadioGroup
+          value={selected.id}
+          onValueChange={(value) => {
+            if (typeof value === "string" && value) onChange(value);
+          }}
+        >
+          {STUDYFLOW_MODELS.map((model) => (
+            <DropdownMenuRadioItem
+              key={model.id}
+              value={model.id}
+              className="items-start gap-2 py-2"
+            >
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="text-sm font-medium text-foreground">{model.label}</p>
+                <p className="text-[11px] leading-4 whitespace-normal text-muted">
+                  {model.description}
+                </p>
+                <p className="font-mono text-[10px] text-muted/80">{model.id}</p>
+              </div>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

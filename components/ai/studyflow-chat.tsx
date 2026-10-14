@@ -3,7 +3,13 @@
 import * as React from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { History, Plus } from "lucide-react";
+import {
+  ArrowUpRight,
+  History,
+  MessageSquare,
+  Plus,
+  Sparkles,
+} from "lucide-react";
 import { AssistantAnswer, UserBubble } from "@/components/ai/chat";
 import { PromptBar, type AssistantMode } from "@/components/ai/prompt-bar";
 import { ThinkingBlock } from "@/components/ai/thinking-block";
@@ -94,6 +100,20 @@ function formatElapsed(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}m ${s.toString().padStart(2, "0")}s`;
+}
+
+function formatRelativeTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const diffSec = Math.round((Date.now() - date.getTime()) / 1000);
+  if (diffSec < 60) return "Just now";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  if (diffSec < 86400 * 7) return `${Math.floor(diffSec / 86400)}d ago`;
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function toUiMessages(
@@ -302,11 +322,12 @@ export function StudyflowChat({
         <Button
           type="button"
           size="xs"
-          variant="ghost"
-          className="text-muted"
+          variant={historyOpen ? "secondary" : "ghost"}
+          className={cn("text-muted", historyOpen && "text-foreground")}
           onClick={() => setHistoryOpen((o) => !o)}
           disabled={!assignmentId}
           title={assignmentId ? "Chat history" : "Open an assignment to use history"}
+          aria-pressed={historyOpen}
         >
           <History className="size-3.5" />
           History
@@ -324,58 +345,149 @@ export function StudyflowChat({
       </div>
 
       {historyOpen ? (
-        <div className="max-h-40 overflow-y-auto border-b border-border bg-surface-muted/40 px-2 py-2">
-          {historyLoading ? (
-            <p className="px-2 text-xs text-muted">Loading…</p>
-          ) : history.length === 0 ? (
-            <p className="px-2 text-xs text-muted">No past chats for this assignment.</p>
-          ) : (
-            <ul className="space-y-1">
-              {history.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => void openConversation(item.id)}
-                    className={cn(
-                      "w-full rounded-md px-2 py-1.5 text-left text-xs hover:bg-surface",
-                      item.id === conversationId && "bg-primary-soft text-primary",
-                    )}
-                  >
-                    <span className="font-medium">
-                      {item.title || "Untitled chat"}
-                    </span>
-                    <span className="mt-0.5 block truncate text-muted">
-                      {item.preview || item.mode}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div className="flex max-h-56 min-h-0 flex-col border-b border-border bg-surface-muted/35">
+          <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-2.5 pb-1.5">
+            <div>
+              <p className="text-xs font-medium text-foreground">Past chats</p>
+              <p className="text-[11px] text-muted">
+                Resume a thread for this assignment
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              className="shrink-0"
+              onClick={startNewChat}
+            >
+              <Plus className="size-3.5" />
+              New
+            </Button>
+          </div>
+
+          <div className="study-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+            {historyLoading ? (
+              <div className="space-y-2 px-1 py-1">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-14 animate-pulse rounded-lg bg-surface-muted"
+                  />
+                ))}
+              </div>
+            ) : history.length === 0 ? (
+              <div className="mx-1 rounded-xl border border-dashed border-border bg-surface/70 px-3 py-6 text-center">
+                <MessageSquare className="mx-auto size-5 text-muted" />
+                <p className="mt-2 text-xs font-medium text-foreground">
+                  No chats yet
+                </p>
+                <p className="mt-1 text-[11px] leading-4 text-muted">
+                  Ask a question below and it will show up here.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-1.5 px-1 py-1">
+                {history.map((item) => {
+                  const active = item.id === conversationId;
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => void openConversation(item.id)}
+                        className={cn(
+                          "group flex w-full items-start gap-2.5 rounded-xl border px-2.5 py-2 text-left transition-colors",
+                          active
+                            ? "border-primary/30 bg-primary-soft/50"
+                            : "border-transparent bg-surface hover:border-border hover:bg-surface",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg",
+                            active
+                              ? "bg-primary-soft text-primary"
+                              : "bg-surface-muted text-muted group-hover:text-foreground",
+                          )}
+                        >
+                          <MessageSquare className="size-3.5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-start justify-between gap-2">
+                            <span
+                              className={cn(
+                                "truncate text-xs font-medium",
+                                active ? "text-primary" : "text-foreground",
+                              )}
+                            >
+                              {item.title?.trim() ||
+                                item.preview?.trim() ||
+                                "New chat"}
+                            </span>
+                            <span className="shrink-0 text-[10px] text-muted">
+                              {formatRelativeTime(item.updatedAt)}
+                            </span>
+                          </span>
+                          {item.preview &&
+                          item.title?.trim() &&
+                          item.preview.trim() !== item.title.trim() ? (
+                            <span className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted">
+                              {item.preview}
+                            </span>
+                          ) : null}
+                          <span className="mt-1 inline-flex rounded-md bg-surface-muted px-1.5 py-0.5 text-[10px] font-medium text-muted">
+                            {item.mode}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
       ) : null}
 
       <div className="study-scroll flex-1 space-y-4 overflow-y-auto p-4">
         {messages.length === 0 ? (
-          <div className="space-y-3">
-            <p className="text-sm text-muted">
-              StudyFlow 會引導你理解題目、整理證據與大綱——唔會代寫全文。
-            </p>
+          <div className="space-y-4">
+            <div className="rounded-xl border border-border/80 bg-surface-muted/40 px-3.5 py-3">
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground">
+                <Sparkles className="size-3.5 text-primary" />
+                Learning support
+              </div>
+              <p className="text-sm leading-6 text-muted">
+                StudyFlow 會引導你理解題目、整理證據與大綱——唔會代寫全文。
+              </p>
+            </div>
             {seedQuestions.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {seedQuestions.map((q) => (
-                  <Button
-                    key={q}
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="max-w-full whitespace-normal text-left text-xs"
-                    disabled={isStreaming}
-                    onClick={() => void handleSend(q)}
-                  >
-                    {q}
-                  </Button>
-                ))}
+              <div className="space-y-2">
+                <p className="px-0.5 text-[11px] font-medium tracking-wide text-muted uppercase">
+                  Suggested questions
+                </p>
+                <div className="space-y-2">
+                  {seedQuestions.map((q, index) => (
+                    <button
+                      key={q}
+                      type="button"
+                      disabled={isStreaming}
+                      onClick={() => void handleSend(q)}
+                      className={cn(
+                        "group flex w-full items-start gap-3 rounded-xl border border-border bg-surface px-3 py-2.5 text-left transition-colors",
+                        "hover:border-primary/35 hover:bg-primary-soft/30",
+                        "disabled:pointer-events-none disabled:opacity-60",
+                      )}
+                    >
+                      <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md bg-surface-muted text-[11px] font-semibold text-muted group-hover:bg-primary-soft group-hover:text-primary">
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 text-[13px] leading-5 text-foreground">
+                        {q}
+                      </span>
+                      <ArrowUpRight className="mt-0.5 size-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
           </div>

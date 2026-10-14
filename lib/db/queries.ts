@@ -710,6 +710,25 @@ export async function resolveAssignmentId(slugOrId?: string | null): Promise<str
   return byId[0]?.id ?? null;
 }
 
+/** True when title is missing or the old "{Mode} chat" placeholder. */
+export function isPlaceholderConversationTitle(
+  title: string | null | undefined,
+): boolean {
+  if (!title?.trim()) return true;
+  return /^(notes-only|research|outline)\s+chat$/i.test(title.trim());
+}
+
+/** Build a readable provisional title from the first user message. */
+export function titleFromUserMessage(text: string): string {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "New chat";
+  if (cleaned.length <= 72) return cleaned;
+  const sliced = cleaned.slice(0, 72);
+  const lastSpace = sliced.lastIndexOf(" ");
+  const base = (lastSpace > 24 ? sliced.slice(0, lastSpace) : sliced).trim();
+  return `${base}…`;
+}
+
 export async function getOrCreateConversation(params: {
   userId: string;
   assignmentId?: string | null;
@@ -735,11 +754,58 @@ export async function getOrCreateConversation(params: {
       userId: params.userId,
       assignmentId: params.assignmentId ?? null,
       mode: params.mode,
-      title: `${params.mode} chat`,
+      title: null,
     })
     .returning();
 
   return created;
+}
+
+export async function getConversationTitle(
+  conversationId: string,
+): Promise<string | null> {
+  const db = getDb();
+  if (!db) return null;
+  const [existing] = await db
+    .select({ title: aiConversations.title })
+    .from(aiConversations)
+    .where(eq(aiConversations.id, conversationId))
+    .limit(1);
+  return existing?.title ?? null;
+}
+
+/**
+ * Set conversation title when empty / placeholder, or when upgrading a
+ * provisional first-message title to a polished generated title.
+ */
+export async function setConversationTitleIfEmpty(params: {
+  conversationId: string;
+  title: string;
+  /** Allow replacing this exact provisional title (from first user message). */
+  replaceProvisional?: string | null;
+}): Promise<string | null> {
+  const db = getDb();
+  if (!db) return null;
+
+  const next = params.title.replace(/\s+/g, " ").trim().slice(0, 255);
+  if (!next) return null;
+
+  const current = (await getConversationTitle(params.conversationId))?.trim() ?? "";
+  const provisional = params.replaceProvisional?.trim() ?? "";
+  const canReplace =
+    isPlaceholderConversationTitle(current) ||
+    (Boolean(provisional) && current === provisional);
+
+  if (!canReplace) {
+    return current || null;
+  }
+
+  await db
+    .update(aiConversations)
+    .set({ title: next, updatedAt: sql`now()` })
+    .where(eq(aiConversations.id, params.conversationId));
+
+  return next;
 }
 
 export async function persistChatMessage(params: {
@@ -820,9 +886,28 @@ export async function listConversationsForAssignment(params: {
       .where(eq(aiMessages.conversationId, row.id))
       .orderBy(desc(aiMessages.createdAt))
       .limit(1);
+
+    let title = row.title;
+    if (isPlaceholderConversationTitle(title)) {
+      const [firstUser] = await db
+        .select({ content: aiMessages.content })
+        .from(aiMessages)
+        .where(
+          and(
+            eq(aiMessages.conversationId, row.id),
+            eq(aiMessages.role, "user"),
+          ),
+        )
+        .orderBy(asc(aiMessages.createdAt))
+        .limit(1);
+      title = firstUser?.content
+        ? titleFromUserMessage(firstUser.content)
+        : null;
+    }
+
     result.push({
       id: row.id,
-      title: row.title,
+      title,
       mode: row.mode,
       updatedAt: row.updatedAt.toISOString(),
       createdAt: row.createdAt.toISOString(),

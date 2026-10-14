@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { LandingPage } from "@/components/marketing/landing-page";
 import { getSession } from "@/lib/auth/session";
 
@@ -7,7 +8,15 @@ export const metadata = {
     "Brief, notes, research, and claim–evidence in one place. Structure first — you write the essay.",
 };
 
-export default async function Home() {
+async function HomeWithSession() {
   const session = await getSession();
   return <LandingPage authenticated={Boolean(session)} />;
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<LandingPage authenticated={false} />}>
+      <HomeWithSession />
+    </Suspense>
+  );
 }

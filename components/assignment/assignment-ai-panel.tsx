@@ -96,14 +96,46 @@ export function AssignmentAiPanel({
           ? [
               "Explain the key concept from my notes for this assignment.",
               "What am I still missing from the materials?",
+              "Quiz me on one idea I should master before drafting.",
             ]
           : view === "brief"
-            ? [
-                writing
-                  ? 'What does "evaluate" mean for this rubric?'
-                  : "What does success look like for this assignment type?",
-              ]
-            : undefined
+            ? writing
+              ? [
+                  'What does "evaluate" mean for this rubric?',
+                  "Which requirements should I tackle first?",
+                  "What would a strong submission look like?",
+                ]
+              : [
+                  "What does success look like for this assignment type?",
+                  "Which requirements should I clarify first?",
+                  "What should I prepare before starting the work?",
+                ]
+            : view === "research"
+              ? writing
+                ? [
+                    "How do I judge if this source is strong enough?",
+                    "What evidence am I still missing for my claims?",
+                  ]
+                : [
+                    "What should I look up next for this assignment?",
+                    "How do I tell if a source is reliable enough?",
+                  ]
+              : view === "outline" || view === "draft"
+                ? writing
+                  ? [
+                      "Where is my argument weakest right now?",
+                      "Which claim still needs clearer evidence?",
+                    ]
+                  : [
+                      "Break my next steps into a simple plan.",
+                      "What should I verify before I submit?",
+                    ]
+                : view === "references"
+                  ? [
+                      "Which references look incomplete for this citation style?",
+                      "How should I format the bibliography entries I already have?",
+                    ]
+                  : undefined
       }
     />
   );

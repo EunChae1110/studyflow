@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   }
   if (!hasAiCredentials()) {
     return Response.json(
-      { error: "AI mid-station is not configured." },
+      { error: "AI station is not configured." },
       { status: 503 },
     );
   }

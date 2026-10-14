@@ -10,6 +10,15 @@ import { AppShell } from "@/components/layout/app-shell";
 import { tabsForAssignmentType } from "@/lib/assignment-types";
 import type { AssignmentDetail, SidebarCourse, StudentProfile } from "@/lib/types";
 
+type AssignmentView =
+  | "brief"
+  | "notes"
+  | "research"
+  | "outline"
+  | "draft"
+  | "references"
+  | "claim-evidence";
+
 const labelByView: Record<string, string> = {
   brief: "Brief",
   notes: "Notes",
@@ -36,14 +45,7 @@ export function AssignmentShellClient({
   const pathname = usePathname();
   const parts = pathname.split("/").filter(Boolean);
   const current = parts[parts.length - 1] ?? "brief";
-  const view = (current in labelByView ? current : "brief") as
-    | "brief"
-    | "notes"
-    | "research"
-    | "outline"
-    | "draft"
-    | "references"
-    | "claim-evidence";
+  const view = (current in labelByView ? current : "brief") as AssignmentView;
 
   const tab = view === "claim-evidence" ? "outline" : view;
   const crumbs = useMemo(
@@ -62,6 +64,19 @@ export function AssignmentShellClient({
       (t) => t.href === "draft",
     )?.label ?? "Draft";
 
+  // Stable element identity across tab switches — only assignment slug remounts chat.
+  const rightPanel = useMemo(
+    () => (
+      <AssignmentAiPanel
+        key={assignment.slug}
+        view={tab}
+        assignmentSlug={assignment.slug}
+        assignmentType={assignment.assignmentType}
+      />
+    ),
+    [assignment.slug, assignment.assignmentType, tab],
+  );
+
   return (
     <BuildProvider
       assignmentSlug={assignment.slug}
@@ -72,21 +87,7 @@ export function AssignmentShellClient({
         crumbs={crumbs}
         profile={profile}
         courses={courses}
-        rightPanel={
-          <AssignmentAiPanel
-            view={
-              tab as
-                | "brief"
-                | "notes"
-                | "research"
-                | "outline"
-                | "draft"
-                | "references"
-            }
-            assignmentSlug={assignment.slug}
-            assignmentType={assignment.assignmentType}
-          />
-        }
+        rightPanel={rightPanel}
       >
         <AssignmentHeader assignment={assignment} />
         <AssignmentTabs

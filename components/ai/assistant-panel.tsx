@@ -40,8 +40,6 @@ const MODE_COPY: Record<
   },
 };
 
-const modes: AssistantMode[] = ["Notes-only", "Research", "Outline"];
-
 export function AssistantPanel({
   title = "AI Assistant",
   activeMode,
@@ -56,11 +54,8 @@ export function AssistantPanel({
   onClose,
   acceptAskEvents = true,
 }: AssistantPanelProps) {
+  // Mode is user-controlled after mount — tab switches must not reset chat/mode.
   const [mode, setMode] = React.useState<AssistantMode>(activeMode);
-
-  React.useEffect(() => {
-    setMode(activeMode);
-  }, [activeMode]);
 
   React.useEffect(() => {
     const handler = (event: Event) => {
@@ -75,12 +70,11 @@ export function AssistantPanel({
   }, []);
 
   const copy = MODE_COPY[mode];
-  const resolvedPlaceholder =
-    mode === activeMode ? promptPlaceholder || copy.placeholder : copy.placeholder;
-  const resolvedHint = mode === activeMode ? promptHint || copy.hint : copy.hint;
+  const resolvedPlaceholder = promptPlaceholder || copy.placeholder;
+  const resolvedHint = promptHint || copy.hint;
 
   return (
-    <section className={cn("flex h-full min-h-[500px] flex-col bg-surface", className)}>
+    <section className={cn("flex h-full min-h-0 flex-col bg-surface", className)}>
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />
@@ -99,21 +93,6 @@ export function AssistantPanel({
           </Button>
         ) : null}
       </header>
-      <div className="grid grid-cols-3 gap-1 border-b border-border p-2">
-        {modes.map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            className={cn(
-              "rounded-md border border-transparent py-1 text-[11px] font-medium text-muted transition-colors hover:bg-surface-muted hover:text-foreground",
-              m === mode && "bg-primary-soft text-primary",
-            )}
-          >
-            {m}
-          </button>
-        ))}
-      </div>
 
       {live ? (
         <StudyflowChat
